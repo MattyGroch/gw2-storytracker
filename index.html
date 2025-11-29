@@ -50,7 +50,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
 
         // --- Icons (Inline to avoid CDN Dependency Issues) ---
         const IconBase = ({ children, size = 24, className = "", ...props }) => (
@@ -133,6 +133,14 @@
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
+            </IconBase>
+        );
+        const RefreshCw = (props) => (
+            <IconBase {...props}>
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M8 16H3v5" />
             </IconBase>
         );
 
@@ -296,33 +304,9 @@
             const [status, setStatus] = useState('');
             const [data, setData] = useState(null);
 
-            const handleLogin = async (e) => {
-                e.preventDefault();
+            const fetchData = useCallback(async (key) => {
                 setLoading(true);
                 setError(null);
-                setStatus('Validating key...');
-
-                try {
-                    // 1. Validate Token
-                    const tokenRes = await fetch(`${API_BASE}/tokeninfo?access_token=${apiKey}`);
-                    if (!tokenRes.ok) throw new Error("Invalid API Key");
-                    const tokenInfo = await tokenRes.json();
-                    
-                    const permissions = tokenInfo.permissions;
-                    if (!permissions.includes('characters') || !permissions.includes('progression')) {
-                        throw new Error("API Key needs 'characters' and 'progression' scopes.");
-                    }
-
-                    localStorage.setItem('gw2_api_key', apiKey);
-                    setHasAccess(true);
-                    await fetchData(apiKey);
-                } catch (err) {
-                    setError(err.message);
-                    setLoading(false);
-                }
-            };
-
-            const fetchData = async (key) => {
                 try {
                     // 2. Fetch Metadata (Seasons & Stories)
                     setStatus('Fetching game data (Seasons & Stories)...');
@@ -441,10 +425,6 @@
                             }
                         });
 
-                        // Fallback: If no one is strictly "in progress", but we have characters with 0 progress?
-                        // No, the prompt implies "if 3 characters started... recommend most progress".
-                        // If no one started, no specific recommendation.
-
                         return {
                             ...season,
                             totalStories: season.stories.length,
@@ -453,7 +433,7 @@
                         };
                     });
 
-                    // Filter out seasons with 0 stories (sometimes API returns placeholders)
+                    // Filter out seasons with 0 stories
                     const validSeasons = processedSeasons.filter(s => s.totalStories > 0);
 
                     setData(validSeasons);
@@ -462,6 +442,38 @@
                 } catch (err) {
                     console.error(err);
                     setError("Failed to fetch or parse game data. " + err.message);
+                    setLoading(false);
+                }
+            }, []);
+
+            // Auto-load if key is present on mount
+            useEffect(() => {
+                if (hasAccess && apiKey && !data) {
+                    fetchData(apiKey);
+                }
+            }, []); // Run once
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError(null);
+                setStatus('Validating key...');
+
+                try {
+                    const tokenRes = await fetch(`${API_BASE}/tokeninfo?access_token=${apiKey}`);
+                    if (!tokenRes.ok) throw new Error("Invalid API Key");
+                    const tokenInfo = await tokenRes.json();
+                    
+                    const permissions = tokenInfo.permissions;
+                    if (!permissions.includes('characters') || !permissions.includes('progression')) {
+                        throw new Error("API Key needs 'characters' and 'progression' scopes.");
+                    }
+
+                    localStorage.setItem('gw2_api_key', apiKey);
+                    setHasAccess(true);
+                    await fetchData(apiKey);
+                } catch (err) {
+                    setError(err.message);
                     setLoading(false);
                 }
             };
@@ -480,7 +492,7 @@
                             <div className="flex justify-center mb-6">
                                 <Shield className="text-red-600 w-16 h-16" />
                             </div>
-                            <h1 className="text-3xl font-bold text-center mb-2">Guild Wars 2: Story Tracker</h1>
+                            <h1 className="text-3xl font-bold text-center mb-2">Guild Wars 2 Story Tracker</h1>
                             <p className="text-gray-400 text-center mb-8">
                                 Enter your Guild Wars 2 API Key to analyze your story progress across all characters.
                             </p>
@@ -527,20 +539,29 @@
                         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Shield className="text-red-600" />
-                                <span className="font-bold text-xl hidden sm:inline">Guild Wars 2: Story Tracker</span>
+                                <span className="font-bold text-xl hidden sm:inline">Guild Wars 2 Story Tracker</span>
                             </div>
-                            <button 
-                                onClick={logout}
-                                className="text-gray-400 hover:text-white flex items-center gap-2 text-sm"
-                            >
-                                <LogOut size={16} /> Sign Out
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => fetchData(apiKey)}
+                                    disabled={loading}
+                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm disabled:opacity-50 transition-colors"
+                                >
+                                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
+                                </button>
+                                <button 
+                                    onClick={logout}
+                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm transition-colors"
+                                >
+                                    <LogOut size={16} /> Sign Out
+                                </button>
+                            </div>
                         </div>
                     </nav>
 
                     {/* Main Content */}
                     <div className="max-w-4xl mx-auto px-4 py-8">
-                        {loading ? (
+                        {loading && !data ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <Loader2 className="animate-spin text-red-600 w-12 h-12 mb-4" />
                                 <p className="text-gray-400 animate-pulse">{status}</p>
