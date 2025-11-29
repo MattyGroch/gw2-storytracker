@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GW2 Story Tracker & Recommender</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e5e5e5;
+        }
+        .gw2-gradient {
+            background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
+        }
+        .card-bg {
+            background-color: #262626;
+        }
+        .progress-bar-bg {
+            background-color: #404040;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #525252; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #737373; 
+        }
+        /* Rotate animation for Loader2 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Icons (Inline to avoid CDN Dependency Issues) ---
+        const IconBase = ({ children, size = 24, className = "", ...props }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className}
+                {...props}
+            >
+                {children}
+            </svg>
+        );
+
+        const Scroll = (props) => (
+            <IconBase {...props}>
+                <path d="M8 21h12a2 2 0 0 0 2-2v-2a10 10 0 0 0-10-10A10 10 0 0 0 2 17v2a2 2 0 0 0 2 2h4" />
+                <path d="M19 17V5a2 2 0 0 0-2-2H4" />
+            </IconBase>
+        );
+        const BookOpen = (props) => (
+            <IconBase {...props}>
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </IconBase>
+        );
+        const Shield = (props) => (
+            <IconBase {...props}>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </IconBase>
+        );
+        const User = (props) => (
+            <IconBase {...props}>
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+            </IconBase>
+        );
+        const AlertCircle = (props) => (
+            <IconBase {...props}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+            </IconBase>
+        );
+        const CheckCircle2 = (props) => (
+            <IconBase {...props}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="m9 12 2 2 4-4" />
+            </IconBase>
+        );
+        const PlayCircle = (props) => (
+            <IconBase {...props}>
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="10 8 16 12 10 16 10 8" />
+            </IconBase>
+        );
+        const Loader2 = (props) => (
+            <IconBase {...props}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </IconBase>
+        );
+        const ChevronDown = (props) => (
+            <IconBase {...props}>
+                <path d="m6 9 6 6 6-6" />
+            </IconBase>
+        );
+        const ChevronUp = (props) => (
+            <IconBase {...props}>
+                <path d="m18 15-6-6-6 6" />
+            </IconBase>
+        );
+        const LogOut = (props) => (
+            <IconBase {...props}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+            </IconBase>
+        );
+
+        // --- API & Helper Functions ---
+
+        const API_BASE = 'https://api.guildwars2.com/v2';
+
+        // Helper to handle rate limiting and chunking
+        async function fetchInChunks(ids, endpoint) {
+            const chunkSize = 200; // API limit is often 200
+            const chunks = [];
+            for (let i = 0; i < ids.length; i += chunkSize) {
+                chunks.push(ids.slice(i, i + chunkSize));
+            }
+            
+            let results = [];
+            for (const chunk of chunks) {
+                const url = `${API_BASE}/${endpoint}?ids=${chunk.join(',')}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Failed to fetch ${endpoint} chunk`);
+                const data = await res.json();
+                results = [...results, ...data];
+            }
+            return results;
+        }
+
+        // --- Components ---
+
+        const ProgressBar = ({ current, total, colorClass = "bg-red-600" }) => {
+            const percentage = Math.min(100, Math.max(0, (current / total) * 100));
+            return (
+                <div className="w-full h-2 rounded-full progress-bar-bg overflow-hidden">
+                    <div 
+                        className={`h-full ${colorClass} transition-all duration-500`} 
+                        style={{ width: `${percentage}%` }}
+                    />
+                </div>
+            );
+        };
+
+        const CharacterRow = ({ charName, progress, total, isRecommended }) => {
+            const percentage = Math.round((progress / total) * 100);
+            const isComplete = progress >= total;
+
+            return (
+                <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-red-900/20 border border-red-900/50' : 'hover:bg-white/5'}`}>
+                    <div className="flex items-center gap-3 flex-1">
+                        <User size={16} className={isRecommended ? "text-red-400" : "text-gray-500"} />
+                        <div className="flex flex-col">
+                            <span className={`text-sm font-medium ${isRecommended ? 'text-red-100' : 'text-gray-300'}`}>
+                                {charName}
+                                {isRecommended && <span className="ml-2 text-xs bg-red-600 text-white px-1.5 py-0.5 rounded">Recommended</span>}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                                {progress} / {total} Chapters ({percentage}%)
+                            </span>
+                        </div>
+                    </div>
+                    <div className="w-24 ml-4">
+                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : (isRecommended ? "bg-red-500" : "bg-gray-500")} />
+                    </div>
+                </div>
+            );
+        };
+
+        const SeasonCard = ({ season, characters, recommendedChar }) => {
+            const [expanded, setExpanded] = useState(false);
+            
+            // Sort characters: Recommended first, then by progress desc
+            const sortedChars = useMemo(() => {
+                return Object.entries(characters)
+                    .map(([name, data]) => ({ name, ...data }))
+                    .sort((a, b) => {
+                        if (a.name === recommendedChar?.name) return -1;
+                        if (b.name === recommendedChar?.name) return 1;
+                        return b.progress - a.progress;
+                    });
+            }, [characters, recommendedChar]);
+
+            const isAllComplete = sortedChars.every(c => c.progress >= season.totalStories);
+            const hasStarted = sortedChars.some(c => c.progress > 0);
+
+            return (
+                <div className={`card-bg rounded-lg border border-gray-800 overflow-hidden mb-4 shadow-lg ${recommendedChar ? 'ring-1 ring-red-900' : ''}`}>
+                    {/* Header */}
+                    <div className="p-4 flex items-center justify-between bg-gradient-to-r from-gray-800 to-transparent">
+                        <div className="flex items-center gap-3">
+                            <BookOpen className="text-red-500" size={24} />
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-100">{season.name}</h3>
+                                <p className="text-xs text-gray-400">{season.totalStories} Chapters</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                            {isAllComplete ? (
+                                <span className="flex items-center text-green-500 text-sm font-medium bg-green-900/20 px-3 py-1 rounded-full">
+                                    <CheckCircle2 size={16} className="mr-1.5" /> Complete
+                                </span>
+                            ) : recommendedChar ? (
+                                <div className="text-right hidden sm:block">
+                                    <div className="text-xs text-gray-400 uppercase tracking-wider">Next Up</div>
+                                    <div className="text-red-400 font-bold flex items-center justify-end">
+                                        {recommendedChar.name} <PlayCircle size={14} className="ml-1" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="text-gray-500 text-sm italic">No active progress</span>
+                            )}
+                            <button 
+                                onClick={() => setExpanded(!expanded)}
+                                className="p-1 hover:bg-gray-700 rounded transition-colors"
+                            >
+                                {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    {(expanded || recommendedChar) && (
+                        <div className="p-4 border-t border-gray-800 space-y-2">
+                             {/* If condensed (not expanded) only show recommendation */}
+                             {!expanded && recommendedChar && (
+                                <CharacterRow 
+                                    charName={recommendedChar.name} 
+                                    progress={recommendedChar.progress} 
+                                    total={season.totalStories} 
+                                    isRecommended={true} 
+                                />
+                             )}
+
+                             {/* If expanded show all */}
+                             {expanded && sortedChars.length > 0 && (
+                                <div className="space-y-2">
+                                    {sortedChars.map(char => (
+                                        <CharacterRow 
+                                            key={char.name}
+                                            charName={char.name}
+                                            progress={char.progress}
+                                            total={season.totalStories}
+                                            isRecommended={char.name === recommendedChar?.name}
+                                        />
+                                    ))}
+                                </div>
+                             )}
+                             
+                             {expanded && sortedChars.length === 0 && (
+                                 <div className="text-center text-gray-500 py-2">No characters found.</div>
+                             )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [apiKey, setApiKey] = useState(localStorage.getItem('gw2_api_key') || '');
+            const [hasAccess, setHasAccess] = useState(!!localStorage.getItem('gw2_api_key'));
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [status, setStatus] = useState('');
+            const [data, setData] = useState(null);
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError(null);
+                setStatus('Validating key...');
+
+                try {
+                    // 1. Validate Token
+                    const tokenRes = await fetch(`${API_BASE}/tokeninfo?access_token=${apiKey}`);
+                    if (!tokenRes.ok) throw new Error("Invalid API Key");
+                    const tokenInfo = await tokenRes.json();
+                    
+                    const permissions = tokenInfo.permissions;
+                    if (!permissions.includes('characters') || !permissions.includes('progression')) {
+                        throw new Error("API Key needs 'characters' and 'progression' scopes.");
+                    }
+
+                    localStorage.setItem('gw2_api_key', apiKey);
+                    setHasAccess(true);
+                    await fetchData(apiKey);
+                } catch (err) {
+                    setError(err.message);
+                    setLoading(false);
+                }
+            };
+
+            const fetchData = async (key) => {
+                try {
+                    // 2. Fetch Metadata (Seasons & Stories)
+                    setStatus('Fetching game data (Seasons & Stories)...');
+                    const [seasonsData, storiesData] = await Promise.all([
+                        fetch(`${API_BASE}/stories/seasons?ids=all`).then(r => r.json()),
+                        fetch(`${API_BASE}/stories?ids=all`).then(r => r.json())
+                    ]);
+
+                    // Build Story Map: SeasonID -> [StoryIDs]
+                    const seasonMap = {};
+                    seasonsData.sort((a, b) => a.order - b.order).forEach(s => {
+                        seasonMap[s.id] = { ...s, stories: [] };
+                    });
+
+                    // Assign stories to seasons
+                    const storyToSeasonMap = {}; // Helper to link storyId -> seasonId
+                    storiesData.sort((a, b) => a.order - b.order).forEach(story => {
+                        if (seasonMap[story.season]) {
+                            seasonMap[story.season].stories.push(story);
+                            storyToSeasonMap[story.id] = story.season;
+                        }
+                    });
+
+                    // 3. Fetch Characters
+                    setStatus('Fetching character list...');
+                    const chars = await fetch(`${API_BASE}/characters?access_token=${key}`).then(r => r.json());
+
+                    // 4. Fetch Completed Quests for ALL characters
+                    // We do this in batches to avoid rate limits if user has many characters
+                    setStatus(`Scanning ${chars.length} characters...`);
+                    const charQuests = {};
+                    const allCompletedQuestIds = new Set();
+
+                    // Batch size of 5 for character requests
+                    const batchSize = 5;
+                    for (let i = 0; i < chars.length; i += batchSize) {
+                        const batch = chars.slice(i, i + batchSize);
+                        const promises = batch.map(async (name) => {
+                            // Safe encode name for URL
+                            const safeName = encodeURIComponent(name);
+                            const res = await fetch(`${API_BASE}/characters/${safeName}/quests?access_token=${key}`);
+                            if(res.ok) {
+                                const qData = await res.json();
+                                charQuests[name] = qData;
+                                qData.forEach(qId => allCompletedQuestIds.add(qId));
+                            } else {
+                                console.warn(`Could not fetch quests for ${name}`);
+                                charQuests[name] = [];
+                            }
+                        });
+                        await Promise.all(promises);
+                        // Small delay to be nice to API
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+
+                    // 5. Resolve Quest IDs to Story IDs
+                    // The character/quests endpoint gives Quest IDs (steps), but we track Story IDs (chapters).
+                    // We need to fetch /v2/quests details for ALL unique completed quests to find their 'story' field.
+                    setStatus('Analyzing quest history (this may take a moment)...');
+                    const uniqueQuestIds = Array.from(allCompletedQuestIds);
+                    
+                    const questDetails = await fetchInChunks(uniqueQuestIds, 'quests');
+                    
+                    // Map QuestID -> StoryID
+                    const questToStoryMap = {};
+                    questDetails.forEach(q => {
+                        if (q.story) questToStoryMap[q.id] = q.story;
+                    });
+
+                    // 6. Calculate Progress
+                    setStatus('Calculating recommendations...');
+                    
+                    const processedSeasons = Object.values(seasonMap).map(season => {
+                        const seasonStories = new Set(season.stories.map(s => s.id));
+                        const charProgressMap = {};
+
+                        chars.forEach(charName => {
+                            const completedQuests = charQuests[charName] || [];
+                            
+                            // Find which stories in THIS season are completed by this character
+                            const completedStoryIdsInSeason = new Set();
+                            
+                            completedQuests.forEach(qId => {
+                                const storyId = questToStoryMap[qId];
+                                if (storyId && seasonStories.has(storyId)) {
+                                    completedStoryIdsInSeason.add(storyId);
+                                }
+                            });
+
+                            charProgressMap[charName] = {
+                                progress: completedStoryIdsInSeason.size,
+                                completedIds: completedStoryIdsInSeason
+                            };
+                        });
+
+                        // Recommendation Logic
+                        let bestCandidate = null;
+                        let maxProgress = -1;
+
+                        Object.entries(charProgressMap).forEach(([name, data]) => {
+                            // We want someone who has started (>0) but not finished (< total)
+                            // Or, if everyone is 0, we leave null (start with anyone)
+                            // If everyone is full, we leave null (done)
+                            const p = data.progress;
+                            const total = season.stories.length;
+
+                            // If total is 0 (some seasons might be empty in API), skip
+                            if (total === 0) return;
+
+                            // Strictly looking for "In Progress" characters first
+                            if (p > 0 && p < total) {
+                                if (p > maxProgress) {
+                                    maxProgress = p;
+                                    bestCandidate = { name, progress: p };
+                                }
+                            }
+                        });
+
+                        // Fallback: If no one is strictly "in progress", but we have characters with 0 progress?
+                        // No, the prompt implies "if 3 characters started... recommend most progress".
+                        // If no one started, no specific recommendation.
+
+                        return {
+                            ...season,
+                            totalStories: season.stories.length,
+                            charData: charProgressMap,
+                            recommendation: bestCandidate
+                        };
+                    });
+
+                    // Filter out seasons with 0 stories (sometimes API returns placeholders)
+                    const validSeasons = processedSeasons.filter(s => s.totalStories > 0);
+
+                    setData(validSeasons);
+                    setLoading(false);
+
+                } catch (err) {
+                    console.error(err);
+                    setError("Failed to fetch or parse game data. " + err.message);
+                    setLoading(false);
+                }
+            };
+
+            const logout = () => {
+                localStorage.removeItem('gw2_api_key');
+                setApiKey('');
+                setHasAccess(false);
+                setData(null);
+            };
+
+            if (!hasAccess) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center p-4">
+                        <div className="card-bg w-full max-w-md p-8 rounded-xl shadow-2xl border border-gray-800">
+                            <div className="flex justify-center mb-6">
+                                <Shield className="text-red-600 w-16 h-16" />
+                            </div>
+                            <h1 className="text-3xl font-bold text-center mb-2">Guild Wars 2: Story Tracker</h1>
+                            <p className="text-gray-400 text-center mb-8">
+                                Enter your Guild Wars 2 API Key to analyze your story progress across all characters.
+                            </p>
+
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">API Key</label>
+                                    <input 
+                                        type="text" 
+                                        value={apiKey}
+                                        onChange={(e) => setApiKey(e.target.value)}
+                                        className="w-full bg-black/30 border border-gray-700 rounded px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                                        placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXXXXX"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Required permissions: <span className="text-gray-300">account, characters, progression</span>
+                                    </p>
+                                </div>
+                                
+                                {error && (
+                                    <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm">
+                                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                        <span>{error}</span>
+                                    </div>
+                                )}
+
+                                <button 
+                                    type="submit" 
+                                    disabled={loading}
+                                    className="w-full gw2-gradient text-white font-bold py-3 rounded hover:opacity-90 transition-opacity flex justify-center items-center gap-2"
+                                >
+                                    {loading ? <Loader2 className="animate-spin" /> : "Load Account"}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen pb-12">
+                    {/* Navbar */}
+                    <nav className="card-bg border-b border-gray-800 sticky top-0 z-50">
+                        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Shield className="text-red-600" />
+                                <span className="font-bold text-xl hidden sm:inline">Guild Wars 2: Story Tracker</span>
+                            </div>
+                            <button 
+                                onClick={logout}
+                                className="text-gray-400 hover:text-white flex items-center gap-2 text-sm"
+                            >
+                                <LogOut size={16} /> Sign Out
+                            </button>
+                        </div>
+                    </nav>
+
+                    {/* Main Content */}
+                    <div className="max-w-4xl mx-auto px-4 py-8">
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <Loader2 className="animate-spin text-red-600 w-12 h-12 mb-4" />
+                                <p className="text-gray-400 animate-pulse">{status}</p>
+                            </div>
+                        ) : data ? (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between mb-8">
+                                    <h2 className="text-2xl font-bold">Story Journal Recommendations</h2>
+                                    <span className="text-sm text-gray-500 bg-gray-800 px-3 py-1 rounded-full">
+                                        {data.length} Seasons Found
+                                    </span>
+                                </div>
+                                
+                                {data.map(season => (
+                                    <SeasonCard 
+                                        key={season.id} 
+                                        season={season} 
+                                        characters={season.charData}
+                                        recommendedChar={season.recommendation}
+                                    />
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
