@@ -147,25 +147,8 @@
         // --- API & Helper Functions ---
 
         const API_BASE = 'https://api.guildwars2.com/v2';
-
-        // Helper to handle rate limiting and chunking
-        async function fetchInChunks(ids, endpoint) {
-            const chunkSize = 200; // API limit is often 200
-            const chunks = [];
-            for (let i = 0; i < ids.length; i += chunkSize) {
-                chunks.push(ids.slice(i, i + chunkSize));
-            }
-            
-            let results = [];
-            for (const chunk of chunks) {
-                const url = `${API_BASE}/${endpoint}?ids=${chunk.join(',')}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`Failed to fetch ${endpoint} chunk`);
-                const data = await res.json();
-                results = [...results, ...data];
-            }
-            return results;
-        }
+        const MY_STORY_SEASON_ID = '215AAA0F-CDAC-4F93-86DA-C155A99B5784';
+        const MY_STORY_QUESTS_PER_PATH = 49;
 
         // --- Components ---
 
@@ -181,7 +164,7 @@
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, isRecommended }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Chapters", isRecommended }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
 
@@ -195,7 +178,7 @@
                                 {isRecommended && <span className="ml-2 text-xs bg-red-600 text-white px-1.5 py-0.5 rounded">Recommended</span>}
                             </span>
                             <span className="text-xs text-gray-500">
-                                {progress} / {total} Chapters ({percentage}%)
+                                {progress} / {total} {unit} ({percentage}%)
                             </span>
                         </div>
                     </div>
@@ -220,7 +203,7 @@
                     });
             }, [characters, recommendedChar]);
 
-            const isAllComplete = sortedChars.every(c => c.progress >= season.totalStories);
+            const isAllComplete = sortedChars.every(c => c.progress >= c.total);
             const hasStarted = sortedChars.some(c => c.progress > 0);
 
             return (
@@ -231,7 +214,7 @@
                             <BookOpen className="text-red-500" size={24} />
                             <div>
                                 <h3 className="text-lg font-bold text-gray-100">{season.name}</h3>
-                                <p className="text-xs text-gray-400">{season.totalStories} Chapters</p>
+                                <p className="text-xs text-gray-400">{season.totalStories} {season.unit || 'Chapters'}</p>
                             </div>
                         </div>
                         
@@ -267,7 +250,8 @@
                                 <CharacterRow 
                                     charName={recommendedChar.name} 
                                     progress={recommendedChar.progress} 
-                                    total={season.totalStories} 
+                                    total={recommendedChar.total} 
+                                    unit={season.unit}
                                     isRecommended={true} 
                                 />
                              )}
@@ -280,7 +264,8 @@
                                             key={char.name}
                                             charName={char.name}
                                             progress={char.progress}
-                                            total={season.totalStories}
+                                            total={char.total}
+                                            unit={season.unit}
                                             isRecommended={char.name === recommendedChar?.name}
                                         />
                                     ))}
@@ -310,19 +295,18 @@
                 try {
                     // 2. Fetch Metadata (Seasons & Stories)
                     setStatus('Fetching game data (Seasons & Stories)...');
-                    const [seasonsData, storiesData] = await Promise.all([
+                    const [seasonsData, storiesData, questToStoryMap] = await Promise.all([
                         fetch(`${API_BASE}/stories/seasons?ids=all`).then(r => r.json()),
-                        fetch(`${API_BASE}/stories?ids=all`).then(r => r.json())
+                        fetch(`${API_BASE}/stories?ids=all`).then(r => r.json()),
+                        fetch('quest-data.json').then(r => r.json())
                     ]);
 
-                    // Build Story Map: SeasonID -> [StoryIDs]
                     const seasonMap = {};
                     seasonsData.sort((a, b) => a.order - b.order).forEach(s => {
                         seasonMap[s.id] = { ...s, stories: [] };
                     });
 
-                    // Assign stories to seasons
-                    const storyToSeasonMap = {}; // Helper to link storyId -> seasonId
+                    const storyToSeasonMap = {};
                     storiesData.sort((a, b) => a.order - b.order).forEach(story => {
                         if (seasonMap[story.season]) {
                             seasonMap[story.season].stories.push(story);
@@ -330,110 +314,119 @@
                         }
                     });
 
-                    // 3. Fetch Characters
                     setStatus('Fetching character list...');
                     const chars = await fetch(`${API_BASE}/characters?access_token=${key}`).then(r => r.json());
 
-                    // 4. Fetch Completed Quests for ALL characters
-                    // We do this in batches to avoid rate limits if user has many characters
                     setStatus(`Scanning ${chars.length} characters...`);
                     const charQuests = {};
-                    const allCompletedQuestIds = new Set();
+                    const charRaces = {};
 
-                    // Batch size of 5 for character requests
                     const batchSize = 5;
                     for (let i = 0; i < chars.length; i += batchSize) {
                         const batch = chars.slice(i, i + batchSize);
                         const promises = batch.map(async (name) => {
-                            // Safe encode name for URL
                             const safeName = encodeURIComponent(name);
-                            const res = await fetch(`${API_BASE}/characters/${safeName}/quests?access_token=${key}`);
-                            if(res.ok) {
-                                const qData = await res.json();
-                                charQuests[name] = qData;
-                                qData.forEach(qId => allCompletedQuestIds.add(qId));
+                            const [questsRes, coreRes] = await Promise.all([
+                                fetch(`${API_BASE}/characters/${safeName}/quests?access_token=${key}`),
+                                fetch(`${API_BASE}/characters/${safeName}/core?access_token=${key}`)
+                            ]);
+                            if(questsRes.ok) {
+                                charQuests[name] = await questsRes.json();
                             } else {
                                 console.warn(`Could not fetch quests for ${name}`);
                                 charQuests[name] = [];
                             }
+                            if(coreRes.ok) {
+                                const coreData = await coreRes.json();
+                                charRaces[name] = coreData.race;
+                            }
                         });
                         await Promise.all(promises);
-                        // Small delay to be nice to API
                         await new Promise(r => setTimeout(r, 100));
                     }
 
-                    // 5. Resolve Quest IDs to Story IDs
-                    // The character/quests endpoint gives Quest IDs (steps), but we track Story IDs (chapters).
-                    // We need to fetch /v2/quests details for ALL unique completed quests to find their 'story' field.
-                    setStatus('Analyzing quest history (this may take a moment)...');
-                    const uniqueQuestIds = Array.from(allCompletedQuestIds);
-                    
-                    const questDetails = await fetchInChunks(uniqueQuestIds, 'quests');
-                    
-                    // Map QuestID -> StoryID
-                    const questToStoryMap = {};
-                    questDetails.forEach(q => {
-                        if (q.story) questToStoryMap[q.id] = q.story;
+                    setStatus('Calculating recommendations...');
+
+                    const storyQuestCounts = {};
+                    Object.values(questToStoryMap).forEach(storyId => {
+                        storyQuestCounts[storyId] = (storyQuestCounts[storyId] || 0) + 1;
                     });
 
-                    // 6. Calculate Progress
-                    setStatus('Calculating recommendations...');
-                    
                     const processedSeasons = Object.values(seasonMap).map(season => {
-                        const seasonStories = new Set(season.stories.map(s => s.id));
                         const charProgressMap = {};
+                        const myStory = season.id === MY_STORY_SEASON_ID;
+                        const seasonTotalQuests = season.stories.reduce((sum, s) =>
+                            sum + (storyQuestCounts[s.id] || 0), 0);
+                        const useQuestLevel = seasonTotalQuests > 0;
 
                         chars.forEach(charName => {
+                            const race = charRaces[charName];
+                            const applicableStories = season.stories.filter(s =>
+                                !s.races || s.races.length === 0 || s.races.includes(race)
+                            );
+                            const applicableStoryIds = new Set(applicableStories.map(s => s.id));
                             const completedQuests = charQuests[charName] || [];
-                            
-                            // Find which stories in THIS season are completed by this character
+
                             const completedStoryIdsInSeason = new Set();
-                            
+                            let completedQuestCount = 0;
+
                             completedQuests.forEach(qId => {
                                 const storyId = questToStoryMap[qId];
-                                if (storyId && seasonStories.has(storyId)) {
+                                if (storyId && applicableStoryIds.has(storyId)) {
                                     completedStoryIdsInSeason.add(storyId);
+                                    completedQuestCount++;
                                 }
                             });
 
-                            charProgressMap[charName] = {
-                                progress: completedStoryIdsInSeason.size,
-                                completedIds: completedStoryIdsInSeason
-                            };
+                            if (useQuestLevel) {
+                                const totalQuests = myStory
+                                    ? MY_STORY_QUESTS_PER_PATH
+                                    : applicableStories.reduce((sum, s) => sum + (storyQuestCounts[s.id] || 0), 0);
+                                charProgressMap[charName] = {
+                                    progress: completedQuestCount,
+                                    total: totalQuests,
+                                    completedIds: completedStoryIdsInSeason
+                                };
+                            } else {
+                                charProgressMap[charName] = {
+                                    progress: completedStoryIdsInSeason.size,
+                                    total: applicableStories.length,
+                                    completedIds: completedStoryIdsInSeason
+                                };
+                            }
                         });
 
-                        // Recommendation Logic
                         let bestCandidate = null;
                         let maxProgress = -1;
 
                         Object.entries(charProgressMap).forEach(([name, data]) => {
-                            // We want someone who has started (>0) but not finished (< total)
-                            // Or, if everyone is 0, we leave null (start with anyone)
-                            // If everyone is full, we leave null (done)
                             const p = data.progress;
-                            const total = season.stories.length;
+                            const total = data.total;
 
-                            // If total is 0 (some seasons might be empty in API), skip
                             if (total === 0) return;
 
-                            // Strictly looking for "In Progress" characters first
                             if (p > 0 && p < total) {
                                 if (p > maxProgress) {
                                     maxProgress = p;
-                                    bestCandidate = { name, progress: p };
+                                    bestCandidate = { name, progress: p, total };
                                 }
                             }
                         });
 
+                        const uniqueOrders = new Set(season.stories.map(s => s.order));
+                        const displayTotal = useQuestLevel
+                            ? (myStory ? MY_STORY_QUESTS_PER_PATH : seasonTotalQuests)
+                            : uniqueOrders.size;
+
                         return {
                             ...season,
-                            totalStories: season.stories.length,
+                            totalStories: displayTotal,
+                            unit: useQuestLevel ? 'Quests' : 'Chapters',
                             charData: charProgressMap,
                             recommendation: bestCandidate
                         };
                     });
 
-                    // Filter out seasons with 0 stories
                     const validSeasons = processedSeasons.filter(s => s.totalStories > 0);
 
                     setData(validSeasons);
