@@ -856,6 +856,11 @@
                                 </button>
                             </div>
                         </div>
+                        {loading && data && (
+                            <div className="max-w-4xl mx-auto px-4 pb-1">
+                                <ProgressBar current={loadProgress.current} total={loadProgress.total} colorClass="bg-gw2-gold" />
+                            </div>
+                        )}
                     </nav>
 
                     {/* Main Content */}
