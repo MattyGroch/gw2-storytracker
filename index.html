@@ -356,7 +356,7 @@
                         <p className="text-2xl font-bold text-gray-100 font-display">
                             <span className="text-green-400">{stats.seasonsCleared}</span> / {stats.totalSeasons}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Seasons Cleared</p>
+                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Stories Completed</p>
                     </div>
                     <div className="card-bg rounded-lg p-4 border border-gw2-gold-dark/30 text-center">
                         <p className="text-2xl font-bold text-gw2-gold-light font-display">{stats.overallPct}%</p>
@@ -399,7 +399,7 @@
                                     {info && <span className="ml-2 text-sm text-gray-400 font-normal font-sans">{info.race} {info.profession}</span>}
                                 </h3>
                                 <p className="text-xs text-gray-400">
-                                    <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Seasons Cleared
+                                    <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
                                 </p>
                             </div>
                         </div>
@@ -790,7 +790,7 @@
                                                 onClick={() => setViewMode('season')}
                                                 className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'season' ? 'bg-gw2-gold-dark text-white' : 'text-gray-400 hover:text-white'}`}
                                             >
-                                                By Season
+                                                By Story
                                             </button>
                                             <button
                                                 onClick={() => setViewMode('character')}
