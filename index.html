@@ -524,6 +524,7 @@
             const [cachedAt, setCachedAt] = useState(null);
             const [staleText, setStaleText] = useState('');
             const [viewMode, setViewMode] = useState('season');
+            const [accountName, setAccountName] = useState('');
 
             const fetchData = useCallback(async (key) => {
                 setLoading(true);
@@ -552,13 +553,15 @@
 
                     setLoadProgress({ current: 1, total: 3 });
                     setStatus('Fetching account data...');
-                    const [chars, accountAccess] = await Promise.all([
+                    const [chars, accountData] = await Promise.all([
                         fetch(`${API_BASE}/characters?access_token=${key}`).then(r => r.json()),
                         fetch(`${API_BASE}/account?access_token=${key}`)
                             .then(r => r.ok ? r.json() : null)
-                            .then(d => d?.access || [])
-                            .catch(() => [])
+                            .catch(() => null)
                     ]);
+                    const accountAccess = accountData?.access || [];
+                    const rawName = accountData?.name || '';
+                    const displayName = rawName.replace(/\.\d+$/, '');
 
                     const totalUnits = 2 + chars.length + 1;
                     setLoadProgress({ current: 2, total: totalUnits });
@@ -694,6 +697,7 @@
 
                     setData(cacheableSeasons);
                     setCharInfo(charInfoMap);
+                    setAccountName(displayName);
                     const now = Date.now();
                     setCachedAt(now);
                     setLoading(false);
@@ -702,6 +706,7 @@
                         sessionStorage.setItem(CACHE_KEY, JSON.stringify({
                             data: cacheableSeasons,
                             charInfo: charInfoMap,
+                            accountName: displayName,
                             cachedAt: now
                         }));
                     } catch (e) { console.warn('Cache save failed', e); }
@@ -721,6 +726,7 @@
                             const cached = JSON.parse(raw);
                             setData(cached.data);
                             setCharInfo(cached.charInfo);
+                            setAccountName(cached.accountName || '');
                             setCachedAt(cached.cachedAt);
                             return;
                         }
@@ -771,6 +777,7 @@
                 setHasAccess(false);
                 setData(null);
                 setCharInfo({});
+                setAccountName('');
                 setCachedAt(null);
             };
 
@@ -871,7 +878,7 @@
                         ) : data ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-2xl font-bold font-display">Story Journal</h2>
+                                    <h2 className="text-2xl font-bold font-display">{accountName ? `${accountName}'s Story Journal` : 'Story Journal'}</h2>
                                     <div className="flex items-center gap-3">
                                         <div className="flex bg-stone-800 rounded-lg p-0.5">
                                             <button
