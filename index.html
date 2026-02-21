@@ -163,12 +163,27 @@
             </IconBase>
         );
 
+        const Lock = (props) => (
+            <IconBase {...props}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </IconBase>
+        );
+
         // --- API & Helper Functions ---
 
         const API_BASE = 'https://api.guildwars2.com/v2';
         const MY_STORY_SEASON_ID = '215AAA0F-CDAC-4F93-86DA-C155A99B5784';
         const MY_STORY_QUESTS_PER_PATH = 49;
         const CACHE_KEY = 'gw2_session_cache';
+
+        const EXPANSION_MAP = {
+            'Heart of Thorns': 'HeartOfThorns',
+            'Path of Fire': 'PathOfFire',
+            'End of Dragons': 'EndOfDragons',
+            'Secrets of the Obscure': 'SecretsOfTheObscure',
+            'Janthir Wilds': 'JanthirWilds',
+        };
 
         function formatRelativeTime(ts) {
             const sec = Math.floor((Date.now() - ts) / 1000);
@@ -235,16 +250,16 @@
                     });
             }, [characters, recommendedChar]);
 
-            const isAllComplete = sortedChars.every(c => c.progress >= c.total);
-            const isCompletedByAny = sortedChars.some(c => c.progress >= c.total);
-            const hasStarted = sortedChars.some(c => c.progress > 0);
+            const isOwned = season.owned !== false;
+            const isAllComplete = isOwned && sortedChars.every(c => c.progress >= c.total);
+            const isCompletedByAny = isOwned && sortedChars.some(c => c.progress >= c.total);
 
             return (
-                <div className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg ${recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}>
+                <div className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}>
                     {/* Header */}
                     <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-3">
-                            <BookOpen className="text-gw2-gold" size={24} />
+                            <BookOpen className={isOwned ? "text-gw2-gold" : "text-gray-600"} size={24} />
                             <div>
                                 <h3 className="text-lg font-bold text-gray-100 font-display">{season.name}</h3>
                                 <p className="text-xs text-gray-400">
@@ -259,7 +274,11 @@
                         </div>
                         
                         <div className="flex items-center gap-4">
-                            {isAllComplete ? (
+                            {!isOwned ? (
+                                <span className="flex items-center text-gray-500 text-sm italic">
+                                    <Lock size={14} className="mr-1.5" /> Requires {season.requiredExpansion}
+                                </span>
+                            ) : isAllComplete ? (
                                 <span className="flex items-center text-green-500 text-sm font-medium bg-green-900/20 px-3 py-1 rounded-full">
                                     <CheckCircle2 size={16} className="mr-1.5" /> Complete
                                 </span>
@@ -273,19 +292,20 @@
                             ) : (
                                 <span className="text-gray-500 text-sm italic">No active progress</span>
                             )}
-                            <button 
-                                onClick={() => setExpanded(!expanded)}
-                                className="p-1 hover:bg-stone-700 rounded transition-colors"
-                            >
-                                {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                            </button>
+                            {isOwned && (
+                                <button 
+                                    onClick={() => setExpanded(!expanded)}
+                                    className="p-1 hover:bg-stone-700 rounded transition-colors"
+                                >
+                                    {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* Content */}
-                    {(expanded || recommendedChar) && (
+                    {isOwned && (expanded || recommendedChar) && (
                         <div className="p-4 border-t border-stone-800 space-y-2">
-                             {/* If condensed (not expanded) only show recommendation */}
                              {!expanded && recommendedChar && (
                                 <CharacterRow 
                                     charName={recommendedChar.name} 
@@ -297,7 +317,6 @@
                                 />
                              )}
 
-                             {/* If expanded show all */}
                              {expanded && sortedChars.length > 0 && (
                                 <div className="space-y-2">
                                     {sortedChars.map(char => (
@@ -326,12 +345,13 @@
         const AccountSummary = ({ data }) => {
             const stats = useMemo(() => {
                 const charNames = Object.keys(data[0]?.charData || {});
-                let seasonsCleared = 0;
+                const owned = data.filter(s => s.owned !== false);
+                let storiesCompleted = 0;
                 let totalProgress = 0;
                 let totalPossible = 0;
 
-                data.forEach(season => {
-                    if (Object.values(season.charData).some(c => c.progress >= c.total)) seasonsCleared++;
+                owned.forEach(season => {
+                    if (Object.values(season.charData).some(c => c.progress >= c.total)) storiesCompleted++;
                     Object.values(season.charData).forEach(c => {
                         totalProgress += c.progress;
                         totalPossible += c.total;
@@ -340,8 +360,8 @@
 
                 return {
                     totalChars: charNames.length,
-                    seasonsCleared,
-                    totalSeasons: data.length,
+                    storiesCompleted,
+                    totalStories: owned.length,
                     overallPct: totalPossible > 0 ? Math.round((totalProgress / totalPossible) * 100) : 0
                 };
             }, [data]);
@@ -354,7 +374,7 @@
                     </div>
                     <div className="card-bg rounded-lg p-4 border border-gw2-gold-dark/30 text-center">
                         <p className="text-2xl font-bold text-gray-100 font-display">
-                            <span className="text-green-400">{stats.seasonsCleared}</span> / {stats.totalSeasons}
+                            <span className="text-green-400">{stats.storiesCompleted}</span> / {stats.totalStories}
                         </p>
                         <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Stories Completed</p>
                     </div>
@@ -372,6 +392,7 @@
 
             const seasonProgress = useMemo(() => {
                 return seasons
+                    .filter(s => s.owned !== false)
                     .map(season => {
                         const cd = season.charData[charName];
                         return {
@@ -476,8 +497,14 @@
                     });
 
                     setLoadProgress({ current: 1, total: 3 });
-                    setStatus('Fetching character list...');
-                    const chars = await fetch(`${API_BASE}/characters?access_token=${key}`).then(r => r.json());
+                    setStatus('Fetching account data...');
+                    const [chars, accountAccess] = await Promise.all([
+                        fetch(`${API_BASE}/characters?access_token=${key}`).then(r => r.json()),
+                        fetch(`${API_BASE}/account?access_token=${key}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .then(d => d?.access || [])
+                            .catch(() => [])
+                    ]);
 
                     const totalUnits = 2 + chars.length + 1;
                     setLoadProgress({ current: 2, total: totalUnits });
@@ -587,12 +614,17 @@
                             ? (myStory ? MY_STORY_QUESTS_PER_PATH : seasonTotalQuests)
                             : uniqueOrders.size;
 
+                        const requiredAccess = EXPANSION_MAP[season.name];
+                        const owned = !requiredAccess || accountAccess.includes(requiredAccess);
+
                         return {
                             ...season,
                             totalStories: displayTotal,
                             unit: useQuestLevel ? 'Quests' : 'Chapters',
                             charData: charProgressMap,
-                            recommendation: bestCandidate
+                            recommendation: owned ? bestCandidate : null,
+                            owned,
+                            requiredExpansion: requiredAccess && !owned ? season.name : null
                         };
                     });
 
@@ -663,8 +695,10 @@
                     const tokenInfo = await tokenRes.json();
                     
                     const permissions = tokenInfo.permissions;
-                    if (!permissions.includes('characters') || !permissions.includes('progression')) {
-                        throw new Error("API Key needs 'characters' and 'progression' scopes.");
+                    const required = ['account', 'characters', 'progression'];
+                    const missing = required.filter(p => !permissions.includes(p));
+                    if (missing.length > 0) {
+                        throw new Error(`API Key needs '${missing.join("', '")}' scopes.`);
                     }
 
                     localStorage.setItem('gw2_api_key', apiKey);
