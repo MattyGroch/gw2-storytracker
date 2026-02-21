@@ -386,6 +386,60 @@
             );
         };
 
+        const HeroRecommendation = ({ data, charInfo }) => {
+            const best = useMemo(() => {
+                let top = null;
+                let topPct = -1;
+
+                data.filter(s => s.owned !== false).forEach(season => {
+                    Object.entries(season.charData).forEach(([name, d]) => {
+                        if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
+                            const pct = d.progress / d.total;
+                            if (pct > topPct || (pct === topPct && d.progress > (top?.progress || 0))) {
+                                topPct = pct;
+                                top = {
+                                    charName: name,
+                                    seasonName: season.name,
+                                    progress: d.progress,
+                                    total: d.total,
+                                    unit: season.unit,
+                                    pct: Math.round(pct * 100)
+                                };
+                            }
+                        }
+                    });
+                });
+
+                return top;
+            }, [data]);
+
+            if (!best) return null;
+            const info = charInfo?.[best.charName];
+
+            return (
+                <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
+                    <div className="flex items-center gap-2 mb-3">
+                        <PlayCircle className="text-gw2-gold" size={18} />
+                        <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Continue Your Journey</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
+                            <p className="text-sm text-gray-400 mt-1">
+                                {best.charName}
+                                {info && <span className="text-gray-500"> · {info.race} {info.profession}</span>}
+                                <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
+                            </p>
+                        </div>
+                        <p className="text-3xl font-bold text-gw2-gold-light font-display">{best.pct}%</p>
+                    </div>
+                    <div className="mt-4">
+                        <ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" />
+                    </div>
+                </div>
+            );
+        };
+
         const CharacterCard = ({ charName, charInfo, seasons }) => {
             const [expanded, setExpanded] = useState(false);
             const info = charInfo?.[charName];
@@ -837,6 +891,7 @@
                                 </div>
 
                                 <AccountSummary data={data} />
+                                <HeroRecommendation data={data} charInfo={charInfo} />
 
                                 {viewMode === 'season' ? (
                                     data.map(season => (
