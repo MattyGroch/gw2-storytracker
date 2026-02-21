@@ -575,7 +575,7 @@
             const [loading, setLoading] = useState(hasOAuthCallback);
             const [error, setError] = useState(null);
             const [status, setStatus] = useState(hasOAuthCallback ? 'Completing authorization...' : '');
-            const [loadProgress, setLoadProgress] = useState({ step: 0, total: 1 });
+            const [loadProgress, setLoadProgress] = useState({ current: 0, total: 1 });
             const [data, setData] = useState(null);
             const [charInfo, setCharInfo] = useState({});
             const [cachedAt, setCachedAt] = useState(null);
