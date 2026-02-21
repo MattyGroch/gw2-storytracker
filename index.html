@@ -185,6 +185,54 @@
             'Janthir Wilds': 'JanthirWilds',
         };
 
+        // --- gw2.me OAuth2 Configuration ---
+        const GW2ME_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+        const GW2ME_REDIRECT_URI = window.location.origin + window.location.pathname;
+        const GW2ME_SCOPES = 'gw2:account gw2:characters gw2:progression';
+        const GW2ME_AUTH_URL = 'https://gw2.me/oauth2/authorize';
+        const GW2ME_TOKEN_URL = 'https://gw2.me/api/token';
+        const GW2ME_API_BASE = 'https://gw2.me/api';
+
+        // --- PKCE Helpers ---
+        function generateCodeVerifier() {
+            const array = new Uint8Array(64);
+            crypto.getRandomValues(array);
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            return Array.from(array, b => chars[b % chars.length]).join('');
+        }
+
+        async function deriveCodeChallenge(verifier) {
+            const data = new TextEncoder().encode(verifier);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function generateState() {
+            const array = new Uint8Array(24);
+            crypto.getRandomValues(array);
+            return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // --- gw2.me API Helpers ---
+        async function getGw2meAccounts(accessToken) {
+            const res = await fetch(`${GW2ME_API_BASE}/accounts`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (!res.ok) throw new Error('Failed to fetch gw2.me accounts');
+            const json = await res.json();
+            return json.accounts;
+        }
+
+        async function getGw2meSubtoken(accessToken, accountId) {
+            const res = await fetch(`${GW2ME_API_BASE}/accounts/${accountId}/subtoken`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (!res.ok) throw new Error('gw2.me session expired. Please log in again.');
+            const json = await res.json();
+            return json.subtoken;
+        }
+
         function formatRelativeTime(ts) {
             const sec = Math.floor((Date.now() - ts) / 1000);
             if (sec < 60) return 'just now';
@@ -513,11 +561,20 @@
         };
 
         const App = () => {
-            const [apiKey, setApiKey] = useState(localStorage.getItem('gw2_api_key') || '');
-            const [hasAccess, setHasAccess] = useState(!!localStorage.getItem('gw2_api_key'));
-            const [loading, setLoading] = useState(false);
+            const storedApiKey = localStorage.getItem('gw2_api_key') || '';
+            const storedGw2meToken = localStorage.getItem('gw2me_access_token') || '';
+            const storedGw2meAccountId = localStorage.getItem('gw2me_account_id') || '';
+            const hasOAuthCallback = !!new URLSearchParams(window.location.search).get('code');
+
+            const [apiKey, setApiKey] = useState(storedApiKey);
+            const [authMethod, setAuthMethod] = useState(storedGw2meToken ? 'gw2me' : storedApiKey ? 'api_key' : null);
+            const [gw2meToken, setGw2meToken] = useState(storedGw2meToken);
+            const [gw2meAccountId, setGw2meAccountId] = useState(storedGw2meAccountId);
+            const [hasAccess, setHasAccess] = useState(!!storedApiKey || !!storedGw2meToken);
+            const [oauthPending, setOauthPending] = useState(hasOAuthCallback);
+            const [loading, setLoading] = useState(hasOAuthCallback);
             const [error, setError] = useState(null);
-            const [status, setStatus] = useState('');
+            const [status, setStatus] = useState(hasOAuthCallback ? 'Completing authorization...' : '');
             const [loadProgress, setLoadProgress] = useState({ step: 0, total: 1 });
             const [data, setData] = useState(null);
             const [charInfo, setCharInfo] = useState({});
@@ -718,19 +775,107 @@
                 }
             }, []);
 
+            // Handle OAuth callback from gw2.me
             useEffect(() => {
-                if (hasAccess && apiKey && !data) {
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                if (!code) return;
+
+                const state = params.get('state');
+                const iss = params.get('iss');
+                const storedState = sessionStorage.getItem('gw2me_state');
+
+                history.replaceState(null, '', window.location.pathname);
+
+                if (state !== storedState) {
+                    setError('OAuth state mismatch — please try logging in again.');
+                    setOauthPending(false);
+                    setLoading(false);
+                    return;
+                }
+                if (iss !== 'https://gw2.me') {
+                    setError('Invalid OAuth issuer.');
+                    setOauthPending(false);
+                    setLoading(false);
+                    return;
+                }
+
+                const codeVerifier = sessionStorage.getItem('gw2me_code_verifier');
+                sessionStorage.removeItem('gw2me_state');
+                sessionStorage.removeItem('gw2me_code_verifier');
+
+                (async () => {
                     try {
-                        const raw = sessionStorage.getItem(CACHE_KEY);
-                        if (raw) {
-                            const cached = JSON.parse(raw);
-                            setData(cached.data);
-                            setCharInfo(cached.charInfo);
-                            setAccountName(cached.accountName || '');
-                            setCachedAt(cached.cachedAt);
-                            return;
+                        setStatus('Exchanging authorization code...');
+                        const tokenRes = await fetch(GW2ME_TOKEN_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({
+                                grant_type: 'authorization_code',
+                                code,
+                                client_id: GW2ME_CLIENT_ID,
+                                redirect_uri: GW2ME_REDIRECT_URI,
+                                code_verifier: codeVerifier
+                            })
+                        });
+                        if (!tokenRes.ok) throw new Error('Failed to exchange authorization code');
+                        const tokenData = await tokenRes.json();
+                        const accessToken = tokenData.access_token;
+
+                        setStatus('Fetching account info from gw2.me...');
+                        const accounts = await getGw2meAccounts(accessToken);
+                        if (!accounts || accounts.length === 0) throw new Error('No GW2 accounts found on gw2.me');
+                        const account = accounts[0];
+
+                        localStorage.setItem('gw2me_access_token', accessToken);
+                        localStorage.setItem('gw2me_account_id', account.id);
+                        setGw2meToken(accessToken);
+                        setGw2meAccountId(account.id);
+                        setAuthMethod('gw2me');
+                        setHasAccess(true);
+                        setOauthPending(false);
+
+                        setStatus('Generating API subtoken...');
+                        const subtoken = await getGw2meSubtoken(accessToken, account.id);
+                        await fetchData(subtoken);
+                    } catch (err) {
+                        setError(err.message);
+                        setOauthPending(false);
+                        setLoading(false);
+                    }
+                })();
+            }, []);
+
+            // Initial data load (cache or fresh fetch)
+            useEffect(() => {
+                if (hasOAuthCallback) return;
+                if (!hasAccess || data) return;
+
+                try {
+                    const raw = sessionStorage.getItem(CACHE_KEY);
+                    if (raw) {
+                        const cached = JSON.parse(raw);
+                        setData(cached.data);
+                        setCharInfo(cached.charInfo);
+                        setAccountName(cached.accountName || '');
+                        setCachedAt(cached.cachedAt);
+                        return;
+                    }
+                } catch (e) { console.warn('Cache load failed', e); }
+
+                if (authMethod === 'gw2me') {
+                    (async () => {
+                        try {
+                            setLoading(true);
+                            setStatus('Generating API subtoken...');
+                            const subtoken = await getGw2meSubtoken(gw2meToken, gw2meAccountId);
+                            await fetchData(subtoken);
+                        } catch (err) {
+                            setError('gw2.me session expired. Please log in again.');
+                            logout();
                         }
-                    } catch (e) { console.warn('Cache load failed', e); }
+                    })();
+                } else if (apiKey) {
                     fetchData(apiKey);
                 }
             }, []);
@@ -762,6 +907,7 @@
                     }
 
                     localStorage.setItem('gw2_api_key', apiKey);
+                    setAuthMethod('api_key');
                     setHasAccess(true);
                     await fetchData(apiKey);
                 } catch (err) {
@@ -770,10 +916,54 @@
                 }
             };
 
+            const handleGw2meLogin = async () => {
+                setError(null);
+                const verifier = generateCodeVerifier();
+                const challenge = await deriveCodeChallenge(verifier);
+                const state = generateState();
+
+                sessionStorage.setItem('gw2me_code_verifier', verifier);
+                sessionStorage.setItem('gw2me_state', state);
+
+                const params = new URLSearchParams({
+                    client_id: GW2ME_CLIENT_ID,
+                    response_type: 'code',
+                    redirect_uri: GW2ME_REDIRECT_URI,
+                    scope: GW2ME_SCOPES,
+                    state,
+                    code_challenge: challenge,
+                    code_challenge_method: 'S256'
+                });
+
+                window.location.href = `${GW2ME_AUTH_URL}?${params.toString()}`;
+            };
+
+            const handleRefresh = useCallback(async () => {
+                if (authMethod === 'gw2me') {
+                    try {
+                        setLoading(true);
+                        setError(null);
+                        setStatus('Generating fresh API subtoken...');
+                        const subtoken = await getGw2meSubtoken(gw2meToken, gw2meAccountId);
+                        await fetchData(subtoken);
+                    } catch (err) {
+                        setError('gw2.me session expired. Please log in again.');
+                        logout();
+                    }
+                } else {
+                    await fetchData(apiKey);
+                }
+            }, [authMethod, gw2meToken, gw2meAccountId, apiKey, fetchData]);
+
             const logout = () => {
                 localStorage.removeItem('gw2_api_key');
+                localStorage.removeItem('gw2me_access_token');
+                localStorage.removeItem('gw2me_account_id');
                 sessionStorage.removeItem(CACHE_KEY);
                 setApiKey('');
+                setGw2meToken('');
+                setGw2meAccountId('');
+                setAuthMethod(null);
                 setHasAccess(false);
                 setData(null);
                 setCharInfo({});
@@ -782,6 +972,21 @@
             };
 
             if (!hasAccess) {
+                if (oauthPending) {
+                    return (
+                        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+                            <Loader2 className="animate-spin text-gw2-gold w-12 h-12 mb-6" />
+                            <p className="text-gray-300 text-sm font-medium">{status || 'Completing authorization...'}</p>
+                            {error && (
+                                <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm mt-6 max-w-md">
+                                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-4">
                         <div className="card-bg w-full max-w-md p-8 rounded-xl shadow-2xl border border-stone-800">
@@ -790,9 +995,32 @@
                             </div>
                             <h1 className="text-3xl font-bold text-center mb-2 font-display">Guild Wars 2 Story Tracker</h1>
                             <p className="text-gray-400 text-center mb-8">
-                                Enter your Guild Wars 2 API Key to analyze your story progress across all characters.
-                                {' '}View and manage your existing API keys <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">here</a>.
+                                Analyze your story progress across all characters.
                             </p>
+
+                            <button
+                                type="button"
+                                onClick={handleGw2meLogin}
+                                disabled={loading}
+                                className="w-full text-white font-bold py-3 rounded transition-colors flex justify-center items-center gap-2.5 hover:opacity-90"
+                                style={{ background: '#303339' }}
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : (
+                                    <>
+                                        <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="#B7000D" fillRule="evenodd" clipPath="url(#gw2me)" clipRule="evenodd"><path d="M8 1a3 3 0 0 0-3 3v2.5a.5.5 0 0 1-1 0V4a4 4 0 0 1 7.615-1.715.5.5 0 1 1-.903.43A3 3 0 0 0 8 1Z"/><path d="M11.916 6.223A.5.5 0 0 0 11.5 6H5V4a3 3 0 0 1 5.712-1.285.5.5 0 1 0 .903-.43A4 4 0 0 0 4 4v2.349L2.084 9.223a.5.5 0 0 0 .062.63l5.5 5.5a.5.5 0 0 0 .708 0l5.5-5.5a.5.5 0 0 0 .062-.63l-2-3ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><defs><clipPath id="gw2me"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+                                        Login with gw2.me
+                                    </>
+                                )}
+                            </button>
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                                No API key needed — authorize securely through <a href="https://gw2.me" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 transition-colors">gw2.me</a>
+                            </p>
+
+                            <div className="flex items-center gap-4 my-6">
+                                <div className="flex-1 border-t border-stone-700"></div>
+                                <span className="text-gray-500 text-sm">or use an API key</span>
+                                <div className="flex-1 border-t border-stone-700"></div>
+                            </div>
 
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <div>
@@ -809,15 +1037,10 @@
                                     </p>
                                     <p className="text-xs text-gray-500 mt-2">
                                         <a href="https://account.arena.net/applications/create" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">Create a new API key</a>
+                                        <span className="mx-1.5 text-stone-700">·</span>
+                                        <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">Manage existing keys</a>
                                     </p>
                                 </div>
-                                
-                                {error && (
-                                    <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm">
-                                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                                        <span>{error}</span>
-                                    </div>
-                                )}
 
                                 <button 
                                     type="submit" 
@@ -827,6 +1050,13 @@
                                     {loading ? <Loader2 className="animate-spin" /> : "Load Account"}
                                 </button>
                             </form>
+
+                            {error && (
+                                <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm mt-4">
+                                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
                         </div>
                         <footer className="text-center text-xs text-gray-600 mt-6">
                             <a href="privacy.html" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
@@ -853,7 +1083,7 @@
                                     <span className="text-xs text-gray-500 hidden sm:inline">Data from {staleText}</span>
                                 )}
                                 <button
-                                    onClick={() => fetchData(apiKey)}
+                                    onClick={handleRefresh}
                                     disabled={loading}
                                     className="text-gray-400 hover:text-white flex items-center gap-2 text-sm disabled:opacity-50 transition-colors"
                                 >

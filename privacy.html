@@ -66,16 +66,30 @@
                     These requests go straight from your browser to ArenaNet — this application never
                     sees, intercepts, or relays the traffic.
                 </p>
+                <p class="mt-2">
+                    Alternatively, you may log in through
+                    <a href="https://gw2.me" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me</a>,
+                    a third-party OAuth2 service for Guild Wars 2. When using gw2.me, your browser
+                    communicates with <code class="text-gw2-gold-light">gw2.me</code> to obtain
+                    short-lived API subtokens, which are then used to access ArenaNet's API on your
+                    behalf. No permanent API key is stored when using this method.
+                </p>
             </section>
 
             <section>
                 <h2 class="text-lg font-bold text-gray-100 font-display mb-2">Data Stored in Your Browser</h2>
                 <ul class="list-disc list-inside space-y-1 ml-1">
                     <li>
-                        <strong class="text-gray-100">API Key</strong> — stored in
+                        <strong class="text-gray-100">API Key</strong> (manual login) — stored in
                         <code class="text-gw2-gold-light">localStorage</code> so you don't have to
                         re-enter it on each visit. It is never sent anywhere other than
                         <code class="text-gw2-gold-light">api.guildwars2.com</code>.
+                    </li>
+                    <li>
+                        <strong class="text-gray-100">gw2.me Access Token</strong> (gw2.me login) — stored in
+                        <code class="text-gw2-gold-light">localStorage</code> to maintain your session.
+                        This token is only sent to <code class="text-gw2-gold-light">gw2.me</code> to
+                        generate short-lived API subtokens. It expires after approximately 7 days.
                     </li>
                     <li>
                         <strong class="text-gray-100">Session Cache</strong> — processed story progress,
@@ -104,6 +118,13 @@
                     <li>Cinzel font from <code class="text-gw2-gold-light">fonts.googleapis.com</code></li>
                 </ul>
                 <p class="mt-2">
+                    If you choose to log in with gw2.me, your browser communicates with
+                    <a href="https://gw2.me" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me</a>
+                    (operated by gw2treasures.com) to authorize access and generate API subtokens.
+                    gw2.me's own privacy practices are governed by their
+                    <a href="https://gw2.me/privacy" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">Privacy Policy</a>.
+                </p>
+                <p class="mt-2">
                     These services may log standard web request data (such as IP addresses) according
                     to their own privacy policies. This application has no control over or access to
                     that data.
@@ -115,9 +136,12 @@
                 <p>
                     You can remove all locally stored data at any time by clicking
                     <strong class="text-gray-100">Sign Out</strong> within the application, which
-                    deletes your API key from <code class="text-gw2-gold-light">localStorage</code>
-                    and clears the session cache. You can also clear your browser's site data manually
-                    through your browser settings.
+                    deletes your API key and/or gw2.me tokens from
+                    <code class="text-gw2-gold-light">localStorage</code> and clears the session
+                    cache. If you logged in via gw2.me, you can also revoke the application's access
+                    from your
+                    <a href="https://gw2.me/applications" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me Authorized Applications</a>
+                    page. You can also clear your browser's site data manually through your browser settings.
                 </p>
             </section>
 

@@ -66,14 +66,27 @@
             </section>
 
             <section>
-                <h2 class="text-lg font-bold text-gray-100 font-display mb-2">API Key Usage</h2>
+                <h2 class="text-lg font-bold text-gray-100 font-display mb-2">Authentication &amp; API Access</h2>
                 <p>
-                    You are responsible for the API keys you provide to the Application. Your API key is
-                    stored locally in your browser and is only used to authenticate requests to ArenaNet's
-                    API (<code class="text-gw2-gold-light">api.guildwars2.com</code>). You may revoke
+                    The Application offers two ways to authenticate: a Guild Wars 2 API key entered
+                    manually, or authorization through
+                    <a href="https://gw2.me" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me</a>,
+                    a third-party OAuth2 service.
+                </p>
+                <p class="mt-2">
+                    If using an API key, it is stored locally in your browser and is only used to
+                    authenticate requests to ArenaNet's API
+                    (<code class="text-gw2-gold-light">api.guildwars2.com</code>). You may revoke
                     your API key at any time through
-                    <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">ArenaNet's API Key Management</a>
-                    page.
+                    <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">ArenaNet's API Key Management</a>.
+                </p>
+                <p class="mt-2">
+                    If using gw2.me, the Application receives a temporary access token and generates
+                    short-lived API subtokens on your behalf. You may revoke the Application's access
+                    at any time from your
+                    <a href="https://gw2.me/applications" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me Authorized Applications</a>
+                    page. Use of gw2.me is also subject to
+                    <a href="https://gw2.me/legal" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me's own terms</a>.
                 </p>
             </section>
 
@@ -113,10 +126,12 @@
             <section>
                 <h2 class="text-lg font-bold text-gray-100 font-display mb-2">Third-Party Services</h2>
                 <p>
-                    The Application relies on ArenaNet's Guild Wars 2 API and loads resources from
-                    third-party CDNs (unpkg, Tailwind CSS, Google Fonts). Your use of these services
-                    is subject to their respective terms and policies. We are not responsible for the
-                    availability or conduct of these third-party services.
+                    The Application relies on ArenaNet's Guild Wars 2 API, optionally
+                    <a href="https://gw2.me" target="_blank" rel="noopener noreferrer" class="text-gw2-gold hover:text-gw2-gold-light transition-colors">gw2.me</a>
+                    for OAuth2 authentication, and loads resources from third-party CDNs (unpkg,
+                    Tailwind CSS, Google Fonts). Your use of these services is subject to their
+                    respective terms and policies. We are not responsible for the availability or
+                    conduct of these third-party services.
                 </p>
             </section>
 
