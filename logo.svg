@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="16" fill="#1e1b17"/>
+
+  <!-- Book left page -->
+  <path d="M64 26 C52 24 30 20 18 26 V88 C30 82 52 86 64 94Z"
+        fill="#c8a84e" fill-opacity="0.06" stroke="#c8a84e" stroke-width="3.5" stroke-linejoin="round"/>
+  <!-- Book right page -->
+  <path d="M64 26 C76 24 98 20 110 26 V88 C98 82 76 86 64 94Z"
+        fill="#c8a84e" fill-opacity="0.06" stroke="#c8a84e" stroke-width="3.5" stroke-linejoin="round"/>
+
+  <!-- 8-pointed star (GW2 story quest style) -->
+  <!-- Base star shape — lighter gold faces -->
+  <polygon
+    points="64,22 68,49 80,42 73,54 100,58 73,62 80,74 68,67 64,94 60,67 48,74 55,62 28,58 55,54 48,42 60,49"
+    fill="#dcc075"/>
+
+  <!-- Shadow faces (clockwise half of each point) for faceted 3D look -->
+  <polygon points="64,22 68,49 64,49" fill="#a08530"/>
+  <polygon points="80,42 73,54 71,52" fill="#a08530"/>
+  <polygon points="100,58 73,62 73,58" fill="#a08530"/>
+  <polygon points="80,74 68,67 71,65" fill="#a08530"/>
+  <polygon points="64,94 60,67 64,67" fill="#a08530"/>
+  <polygon points="48,74 55,62 57,65" fill="#a08530"/>
+  <polygon points="28,58 55,54 55,58" fill="#a08530"/>
+  <polygon points="48,42 60,49 57,52" fill="#a08530"/>
+</svg>
