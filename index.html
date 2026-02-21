@@ -791,7 +791,7 @@
                             <h1 className="text-3xl font-bold text-center mb-2 font-display">Guild Wars 2 Story Tracker</h1>
                             <p className="text-gray-400 text-center mb-8">
                                 Enter your Guild Wars 2 API Key to analyze your story progress across all characters.
-                                {' '}Manage your existing API keys <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">here</a>.
+                                {' '}View and manage your existing API keys <a href="https://account.arena.net/applications" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">here</a>.
                             </p>
 
                             <form onSubmit={handleLogin} className="space-y-4">
@@ -804,11 +804,11 @@
                                         className="w-full bg-black/30 border border-stone-700 rounded px-4 py-3 text-white focus:outline-none focus:border-gw2-gold transition-colors"
                                         placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXXXXXXXXXX"
                                     />
-                                    <p className="text-xs text-gray-500 mt-2">
-                                        <a href="https://account.arena.net/applications/create" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">Create a new API key</a>
-                                    </p>
                                     <p className="text-xs text-gray-500 mt-1">
                                         Required permissions: <span className="text-gray-300">account, characters, progression</span>
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        <a href="https://account.arena.net/applications/create" target="_blank" rel="noopener noreferrer" className="text-gw2-gold hover:text-gw2-gold-light transition-colors">Create a new API key</a>
                                     </p>
                                 </div>
                                 
@@ -828,6 +828,11 @@
                                 </button>
                             </form>
                         </div>
+                        <footer className="text-center text-xs text-gray-600 mt-6">
+                            <a href="privacy.html" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+                            <span className="mx-1.5">·</span>
+                            <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                        </footer>
                     </div>
                 );
             }
@@ -938,6 +943,11 @@
                             </div>
                         ) : null}
                     </div>
+                    <footer className="text-center text-xs text-gray-600 py-8">
+                        <a href="privacy.html" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                    </footer>
                 </div>
             );
         };
