@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GW2 Story Tracker — Demo</title>
+    <meta name="description" content="Preview the GW2 Story Tracker with sample data. No API key required.">
+    <meta name="theme-color" content="#c8a84e">
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gw2: {
+                            gold: '#c8a84e',
+                            'gold-light': '#dcc075',
+                            'gold-dark': '#8a6b2d',
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Cinzel', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #13110f;
+            color: #e8e0d6;
+        }
+        .gw2-gradient {
+            background: linear-gradient(135deg, #c8a84e 0%, #8a6b2d 100%);
+        }
+        .card-bg {
+            background-color: #1e1b17;
+        }
+        .progress-bar-bg {
+            background-color: #3a352e;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #13110f; }
+        ::-webkit-scrollbar-thumb { background: #4a443a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b6355; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        const IconBase = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                className={className} {...props}>{children}</svg>
+        );
+        const BookOpen = (props) => (<IconBase {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></IconBase>);
+        const User = (props) => (<IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></IconBase>);
+        const CheckCircle2 = (props) => (<IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></IconBase>);
+        const PlayCircle = (props) => (<IconBase {...props}><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></IconBase>);
+        const ChevronDown = (props) => (<IconBase {...props}><path d="m6 9 6 6 6-6" /></IconBase>);
+        const ChevronUp = (props) => (<IconBase {...props}><path d="m18 15-6-6-6 6" /></IconBase>);
+        const Eye = (props) => (<IconBase {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></IconBase>);
+        const EyeOff = (props) => (<IconBase {...props}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></IconBase>);
+        const Lock = (props) => (<IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>);
+
+        const PROFESSION_ICONS = {
+            Guardian:     'https://render.guildwars2.com/file/28D46E95F70834CE45640375FCDB0DEAF198325B/716635.png',
+            Warrior:      'https://render.guildwars2.com/file/09903302A30373E52F49CBA948D4A268D30A5E39/716647.png',
+            Revenant:     'https://render.guildwars2.com/file/FF240FFCF7D86A0436450FB610AB21716D5B6AA7/965716.png',
+            Necromancer:  'https://render.guildwars2.com/file/08BD360F557115260FA4D71E6F76ACCCF59FF70F/716639.png',
+            Mesmer:       'https://render.guildwars2.com/file/B2D21D2FFDB5C95CDC72B91BB02F60080F0F463D/716638.png',
+            Elementalist: 'https://render.guildwars2.com/file/0303027C1F73E97F5F011ECFCE9C9A40767BB747/716633.png',
+            Thief:        'https://render.guildwars2.com/file/5C092FE9351A2DF820B1B5719B5F5097D20633EE/716644.png',
+            Ranger:       'https://render.guildwars2.com/file/9BFA11F4D5114FBF11AFBEF00F249C3934AD62AD/716643.png',
+            Engineer:     'https://render.guildwars2.com/file/1E90D49793D5BAFDE2DFDC95089FDF9A997401F1/716634.png',
+        };
+
+        const STORY_COLORS = {
+            'My Story':                 '#961208',
+            'Living World Season 1':    '#882010',
+            'Living World Season 2':    '#882010',
+            'Heart of Thorns':          '#4d7a1e',
+            'Living World Season 3':    '#5a7a28',
+            'Path of Fire':             '#922050',
+            'Living World Season 4':    '#7a2040',
+            'The Icebrood Saga':        '#3a6888',
+            'End of Dragons':           '#1a8880',
+            'Secrets of the Obscure':   '#907828',
+            'Janthir Wilds':            '#2e70a0',
+            'Visions of Eternity':      '#c85018',
+        };
+
+        // --- Shared Components ---
+
+        const ProgressBar = ({ current, total, colorClass = "bg-gw2-gold" }) => {
+            const percentage = Math.min(100, Math.max(0, (current / total) * 100));
+            return (
+                <div className="w-full h-2 rounded-full progress-bar-bg overflow-hidden">
+                    <div className={`h-full ${colorClass} transition-all duration-500`} style={{ width: `${percentage}%` }} />
+                </div>
+            );
+        };
+
+        const CharacterRow = ({ charName, progress, total, unit = "Quests", isRecommended, charInfo }) => {
+            const percentage = Math.round((progress / total) * 100);
+            const isComplete = progress >= total;
+            const info = charInfo?.[charName];
+            return (
+                <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-gw2-gold-dark/15 border border-gw2-gold-dark/40' : 'hover:bg-white/5'}`}>
+                    <div className="flex items-center gap-3 flex-1">
+                        {info?.profession && PROFESSION_ICONS[info.profession]
+                            ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-8 h-8 shrink-0" />
+                            : <User size={16} className={isRecommended ? "text-gw2-gold-light" : "text-gray-500"} />
+                        }
+                        <div className="flex flex-col">
+                            <span className={`text-sm font-medium ${isRecommended ? 'text-amber-200' : 'text-gray-300'}`}>
+                                {charName}
+                                {info && <span className="ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} {info.race} {info.profession}</span>}
+                                {isRecommended && <span className="ml-2 text-xs bg-gw2-gold-dark text-amber-100 px-1.5 py-0.5 rounded">Recommended</span>}
+                            </span>
+                            <span className="text-xs text-gray-500">{progress} / {total} {unit} ({percentage}%)</span>
+                        </div>
+                    </div>
+                    <div className="w-24 ml-4">
+                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : (isRecommended ? "bg-gw2-gold" : "bg-gray-500")} />
+                    </div>
+                </div>
+            );
+        };
+
+        const SeasonCard = ({ season, characters, recommendedChar, charInfo }) => {
+            const [expanded, setExpanded] = useState(false);
+            const sortedChars = useMemo(() => {
+                return Object.entries(characters)
+                    .map(([name, data]) => ({ name, ...data }))
+                    .sort((a, b) => {
+                        if (a.name === recommendedChar?.name) return -1;
+                        if (b.name === recommendedChar?.name) return 1;
+                        return b.progress - a.progress;
+                    });
+            }, [characters, recommendedChar]);
+
+            const isOwned = season.owned !== false;
+            const isAllComplete = isOwned && sortedChars.every(c => c.progress >= c.total);
+            const isCompletedByAny = isOwned && sortedChars.some(c => c.progress >= c.total);
+            const themeColor = STORY_COLORS[season.name];
+
+            return (
+                <div
+                    className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
+                    style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
+                >
+                    <div
+                        className="p-4 flex items-center justify-between"
+                        style={themeColor
+                            ? { background: `linear-gradient(to right, ${themeColor}30, transparent)` }
+                            : { background: 'linear-gradient(to right, rgb(41 37 36), transparent)' }
+                        }
+                    >
+                        <div className="flex items-center gap-3">
+                            <BookOpen className={isOwned ? "text-gw2-gold" : "text-gray-600"} size={24} />
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-100 font-display">{season.name}</h3>
+                                <p className="text-xs text-gray-400">
+                                    {season.totalStories} {season.unit || 'Quests'}
+                                    {isCompletedByAny && !isAllComplete && (
+                                        <span className="ml-2 text-green-500 inline-flex items-center">
+                                            <CheckCircle2 size={10} className="mr-0.5" /> Completed by at least one character
+                                        </span>
+                                    )}
+                                    {isAllComplete && (
+                                        <span className="ml-2 text-green-400 inline-flex items-center font-medium">
+                                            <CheckCircle2 size={10} className="mr-0.5" /> Completed by all characters
+                                        </span>
+                                    )}
+                                    {!isOwned && season.requiredExpansion && (
+                                        <span className="ml-2 text-gray-500 inline-flex items-center">
+                                            <Lock size={10} className="mr-0.5" /> Requires {season.requiredExpansion}
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                        <button onClick={() => setExpanded(!expanded)} className="p-1 hover:bg-stone-700 rounded transition-colors">
+                            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
+                    </div>
+                    {expanded && (
+                        <div className="p-4 border-t border-stone-800">
+                             {expanded && sortedChars.length > 0 && (
+                                <div className="space-y-2">
+                                    {sortedChars.map(char => (
+                                        <CharacterRow
+                                            key={char.name} charName={char.name} progress={char.progress} total={char.total}
+                                            unit={season.unit} isRecommended={char.name === recommendedChar?.name} charInfo={charInfo}
+                                        />
+                                    ))}
+                                </div>
+                             )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const AccountSummary = ({ data }) => {
+            const stats = useMemo(() => {
+                const charNames = Object.keys(data[0]?.charData || {});
+                const owned = data.filter(s => s.owned !== false);
+                let storiesCompleted = 0, totalProgress = 0, totalPossible = 0;
+                owned.forEach(season => {
+                    if (Object.values(season.charData).some(c => c.progress >= c.total)) storiesCompleted++;
+                    Object.values(season.charData).forEach(c => { totalProgress += c.progress; totalPossible += c.total; });
+                });
+                return {
+                    totalChars: charNames.length, storiesCompleted, totalStories: owned.length,
+                    overallPct: totalPossible > 0 ? Math.round((totalProgress / totalPossible) * 100) : 0
+                };
+            }, [data]);
+            return (
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="card-bg rounded-lg p-4 border border-gw2-gold-dark/30 text-center">
+                        <p className="text-2xl font-bold text-gw2-gold-light font-display">{stats.totalChars}</p>
+                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Characters</p>
+                    </div>
+                    <div className="card-bg rounded-lg p-4 border border-gw2-gold-dark/30 text-center">
+                        <p className="text-2xl font-bold text-gray-100 font-display">
+                            <span className="text-green-400">{stats.storiesCompleted}</span> / {stats.totalStories}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Stories Completed</p>
+                    </div>
+                    <div className="card-bg rounded-lg p-4 border border-gw2-gold-dark/30 text-center">
+                        <p className="text-2xl font-bold text-gw2-gold-light font-display">{stats.overallPct}%</p>
+                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Overall Completion</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const HeroRecommendation = ({ data, charInfo }) => {
+            const best = useMemo(() => {
+                let top = null, topPct = -1;
+                data.filter(s => s.owned !== false).forEach(season => {
+                    Object.entries(season.charData).forEach(([name, d]) => {
+                        if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
+                            const pct = d.progress / d.total;
+                            if (pct > topPct || (pct === topPct && d.progress > (top?.progress || 0))) {
+                                topPct = pct;
+                                top = { charName: name, seasonName: season.name, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100) };
+                            }
+                        }
+                    });
+                });
+                return top;
+            }, [data]);
+            if (!best) return null;
+            const info = charInfo?.[best.charName];
+            return (
+                <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
+                    <div className="flex items-center gap-2 mb-3">
+                        <PlayCircle className="text-gw2-gold" size={18} />
+                        <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Continue Your Journey</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
+                            <p className="text-sm text-gray-400 mt-1">
+                                {best.charName}
+                                {info && <span className="text-gray-500"> · Lv.{info.level} {info.race} {info.profession}</span>}
+                                <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
+                            </p>
+                        </div>
+                        <p className="text-3xl font-bold text-gw2-gold-light font-display">{best.pct}%</p>
+                    </div>
+                    <div className="mt-4"><ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" /></div>
+                </div>
+            );
+        };
+
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility }) => {
+            const [expanded, setExpanded] = useState(false);
+            const info = charInfo?.[charName];
+            const seasonProgress = useMemo(() => {
+                return seasons.filter(s => s.owned !== false).map(season => {
+                    const cd = season.charData[charName];
+                    return { name: season.name, id: season.id, progress: cd?.progress || 0, total: cd?.total || 0, unit: season.unit || 'Quests' };
+                }).filter(s => s.total > 0);
+            }, [seasons, charName]);
+            const completedSeasons = seasonProgress.filter(s => s.progress >= s.total).length;
+            const totalSeasons = seasonProgress.length;
+            return (
+                <div className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg transition-opacity ${isHidden ? 'opacity-50' : ''}`}>
+                    <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
+                        <div className="flex items-center gap-3">
+                            {info?.profession && PROFESSION_ICONS[info.profession]
+                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className={`w-12 h-12 ${isHidden ? 'grayscale' : ''}`} />
+                                : <User className="text-gw2-gold" size={24} />
+                            }
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-100 font-display">
+                                    {charName}
+                                    {info && <span className="ml-2 text-sm text-gray-400 font-normal font-sans">Lv.{info.level} {info.race} {info.profession}</span>}
+                                    {isHidden && <span className="ml-2 text-xs text-gray-500 font-normal font-sans italic">Hidden from Story view</span>}
+                                </h3>
+                                <p className="text-xs text-gray-400">
+                                    <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button onClick={() => onToggleVisibility(charName)}
+                                className={`p-1 rounded transition-colors ${isHidden ? 'text-gray-600 hover:text-gray-300' : 'text-gray-400 hover:text-white'}`}
+                                title={isHidden ? 'Show in Story view' : 'Hide from Story view'}>
+                                {isHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                            <button onClick={() => setExpanded(!expanded)} className="p-1 hover:bg-stone-700 rounded transition-colors">
+                                {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            </button>
+                        </div>
+                    </div>
+                    {expanded && (
+                        <div className="p-4 border-t border-stone-800 space-y-2">
+                            {seasonProgress.map(sp => {
+                                const pct = Math.round((sp.progress / sp.total) * 100);
+                                const isComplete = sp.progress >= sp.total;
+                                const hasProgress = sp.progress > 0;
+                                return (
+                                    <div key={sp.id} className="flex items-center justify-between p-2 rounded hover:bg-white/5"
+                                        style={STORY_COLORS[sp.name] ? { borderLeft: `3px solid ${STORY_COLORS[sp.name]}` } : undefined}>
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <BookOpen size={16} className={isComplete ? "text-green-500" : hasProgress ? "text-gw2-gold-light" : "text-gray-600"} />
+                                            <div className="flex flex-col">
+                                                <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
+                                                <span className="text-xs text-gray-500">{sp.progress} / {sp.total} {sp.unit} ({pct}%)</span>
+                                            </div>
+                                        </div>
+                                        <div className="w-24 ml-4">
+                                            <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- Demo Data ---
+
+        const DEMO_CHAR_INFO = {
+            'Valeria Ashford':    { race: 'Human',   profession: 'Guardian',     level: 80 },
+            'Kraz Soulcleaver':   { race: 'Charr',   profession: 'Necromancer',  level: 80 },
+            'Zephyr Windwalker':  { race: 'Sylvari', profession: 'Ranger',       level: 80 },
+            'Brix Sparkwrench':   { race: 'Asura',   profession: 'Engineer',     level: 80 },
+            'Thyra Frostblade':   { race: 'Norn',    profession: 'Warrior',      level: 72 },
+            'Mist Dancer':        { race: 'Human',   profession: 'Mesmer',       level: 80 },
+        };
+
+        const chars = Object.keys(DEMO_CHAR_INFO);
+
+        const mkCharData = (progressArr, total) => {
+            const cd = {};
+            chars.forEach((c, i) => { cd[c] = { progress: progressArr[i], total }; });
+            return cd;
+        };
+
+        const DEMO_DATA = [
+            { id: 's1',  name: 'My Story',                 totalStories: 54, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([54, 54, 54, 38, 22, 54], 54),
+              recommendation: { name: 'Brix Sparkwrench', progress: 38, total: 54 } },
+            { id: 's2',  name: 'Living World Season 1',    totalStories: 89, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([89, 89, 45, 0, 0, 89], 89),
+              recommendation: { name: 'Zephyr Windwalker', progress: 45, total: 89 } },
+            { id: 's3',  name: 'Living World Season 2',    totalStories: 46, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([46, 46, 46, 0, 0, 32], 46),
+              recommendation: { name: 'Mist Dancer', progress: 32, total: 46 } },
+            { id: 's4',  name: 'Heart of Thorns',          totalStories: 48, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([48, 48, 30, 0, 0, 48], 48),
+              recommendation: { name: 'Zephyr Windwalker', progress: 30, total: 48 } },
+            { id: 's5',  name: 'Living World Season 3',    totalStories: 30, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([30, 30, 12, 0, 0, 30], 30),
+              recommendation: { name: 'Zephyr Windwalker', progress: 12, total: 30 } },
+            { id: 's6',  name: 'Path of Fire',             totalStories: 52, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([52, 35, 0, 0, 0, 52], 52),
+              recommendation: { name: 'Kraz Soulcleaver', progress: 35, total: 52 } },
+            { id: 's7',  name: 'Living World Season 4',    totalStories: 30, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([30, 18, 0, 0, 0, 30], 30),
+              recommendation: { name: 'Kraz Soulcleaver', progress: 18, total: 30 } },
+            { id: 's8',  name: 'The Icebrood Saga',        totalStories: 40, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([40, 0, 0, 0, 0, 25], 40),
+              recommendation: { name: 'Mist Dancer', progress: 25, total: 40 } },
+            { id: 's9',  name: 'End of Dragons',           totalStories: 50, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([50, 0, 0, 0, 0, 12], 50),
+              recommendation: { name: 'Mist Dancer', progress: 12, total: 50 } },
+            { id: 's10', name: 'Secrets of the Obscure',   totalStories: 44, unit: 'Quests', owned: true, requiredExpansion: null,
+              charData: mkCharData([38, 0, 0, 0, 0, 0], 44),
+              recommendation: { name: 'Valeria Ashford', progress: 38, total: 44 } },
+            { id: 's11', name: 'Janthir Wilds',            totalStories: 20, unit: 'Quests', owned: false, requiredExpansion: 'Janthir Wilds',
+              charData: mkCharData([0, 0, 0, 0, 0, 0], 20),
+              recommendation: null },
+        ];
+
+        // --- Demo App ---
+
+        const DemoApp = () => {
+            const [viewMode, setViewMode] = useState('season');
+            const [hiddenChars, setHiddenChars] = useState(new Set());
+
+            const toggleCharVisibility = (name) => {
+                setHiddenChars(prev => {
+                    const next = new Set(prev);
+                    next.has(name) ? next.delete(name) : next.add(name);
+                    return next;
+                });
+            };
+
+            const visibleData = useMemo(() => {
+                if (hiddenChars.size === 0) return DEMO_DATA;
+                return DEMO_DATA.map(season => {
+                    const filteredCharData = {};
+                    Object.entries(season.charData).forEach(([name, d]) => {
+                        if (!hiddenChars.has(name)) filteredCharData[name] = d;
+                    });
+                    let recommendation = null;
+                    if (season.owned !== false) {
+                        let topPct = -1;
+                        Object.entries(filteredCharData).forEach(([name, d]) => {
+                            if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
+                                const pct = d.progress / d.total;
+                                if (pct > topPct || (pct === topPct && d.progress > (recommendation?.progress || 0))) {
+                                    topPct = pct;
+                                    recommendation = { name, ...d };
+                                }
+                            }
+                        });
+                    }
+                    return { ...season, charData: filteredCharData, recommendation };
+                });
+            }, [hiddenChars]);
+
+            return (
+                <div className="min-h-screen pb-12">
+                    <nav className="card-bg border-b border-stone-800 sticky top-0 z-50">
+                        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <img src="logo.svg" alt="GW2 Story Tracker" className="w-8 h-8 rounded" />
+                                <span className="font-bold text-xl hidden sm:inline font-display">Guild Wars 2 Story Tracker</span>
+                            </div>
+                            <a href="index.html"
+                                className="gw2-gradient text-white text-sm font-bold px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                                Use Your Own Account
+                            </a>
+                        </div>
+                    </nav>
+
+                    <div className="bg-gw2-gold-dark/20 border-b border-gw2-gold-dark/40">
+                        <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2">
+                            <BookOpen size={14} className="text-gw2-gold" />
+                            <p className="text-sm text-gray-300">
+                                This is a <span className="text-gw2-gold-light font-medium">live demo</span> with sample data.
+                                <a href="index.html" className="ml-1 text-gw2-gold hover:text-gw2-gold-light transition-colors font-medium">
+                                    Log in to see your own progress →
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="max-w-4xl mx-auto px-4 py-8">
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-2xl font-bold font-display">Valeria's Story Journal</h2>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex bg-stone-800 rounded-lg p-0.5">
+                                        <button onClick={() => setViewMode('season')}
+                                            className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'season' ? 'bg-gw2-gold-dark text-white' : 'text-gray-400 hover:text-white'}`}>
+                                            By Story
+                                        </button>
+                                        <button onClick={() => setViewMode('character')}
+                                            className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'character' ? 'bg-gw2-gold-dark text-white' : 'text-gray-400 hover:text-white'}`}>
+                                            By Character
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <AccountSummary data={visibleData} />
+                            <HeroRecommendation data={visibleData} charInfo={DEMO_CHAR_INFO} />
+                            <div className="border-t border-stone-800 my-6"></div>
+
+                            {viewMode === 'season' && hiddenChars.size > 0 && (
+                                <div className="flex items-center justify-center gap-2 mb-4 text-sm text-gray-500">
+                                    <EyeOff size={14} />
+                                    <span>{hiddenChars.size} character{hiddenChars.size > 1 ? 's' : ''} hidden</span>
+                                    <span className="text-gray-700">·</span>
+                                    <button onClick={() => setViewMode('character')} className="text-gw2-gold-light hover:text-gw2-gold transition-colors">Manage</button>
+                                </div>
+                            )}
+
+                            {viewMode === 'season' ? (
+                                visibleData.map(season => (
+                                    <SeasonCard key={season.id} season={season} characters={season.charData}
+                                        recommendedChar={season.recommendation} charInfo={DEMO_CHAR_INFO} />
+                                ))
+                            ) : (
+                                Object.keys(DEMO_CHAR_INFO)
+                                    .sort((a, b) => {
+                                        const prog = (name) => DEMO_DATA.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0);
+                                        return prog(b) - prog(a);
+                                    })
+                                    .map(name => (
+                                        <CharacterCard key={name} charName={name} charInfo={DEMO_CHAR_INFO} seasons={DEMO_DATA}
+                                            isHidden={hiddenChars.has(name)} onToggleVisibility={toggleCharVisibility} />
+                                    ))
+                            )}
+                        </div>
+                    </div>
+                    <footer className="text-center text-xs text-gray-600 py-8">
+                        <a href="privacy.html" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="tos.html" className="hover:text-gray-400 transition-colors">Terms of Service</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DemoApp />);
+    </script>
+</body>
+</html>
