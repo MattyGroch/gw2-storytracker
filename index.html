@@ -170,6 +170,20 @@
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </IconBase>
         );
+        const Eye = (props) => (
+            <IconBase {...props}>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+            </IconBase>
+        );
+        const EyeOff = (props) => (
+            <IconBase {...props}>
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+            </IconBase>
+        );
 
         // --- API & Helper Functions ---
 
@@ -301,7 +315,7 @@
                         <div className="flex flex-col">
                             <span className={`text-sm font-medium ${isRecommended ? 'text-amber-200' : 'text-gray-300'}`}>
                                 {charName}
-                                {info && <span className="ml-1.5 text-xs text-gray-500 font-normal">{info.race} {info.profession}</span>}
+                                {info && <span className="ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} {info.race} {info.profession}</span>}
                                 {isRecommended && <span className="ml-2 text-xs bg-gw2-gold-dark text-amber-100 px-1.5 py-0.5 rounded">Recommended</span>}
                             </span>
                             <span className="text-xs text-gray-500">
@@ -517,7 +531,7 @@
                             <h3 className="text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
                             <p className="text-sm text-gray-400 mt-1">
                                 {best.charName}
-                                {info && <span className="text-gray-500"> · {info.race} {info.profession}</span>}
+                                {info && <span className="text-gray-500"> · Lv.{info.level} {info.race} {info.profession}</span>}
                                 <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
                             </p>
                         </div>
@@ -530,7 +544,7 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons }) => {
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility }) => {
             const [expanded, setExpanded] = useState(false);
             const info = charInfo?.[charName];
 
@@ -554,29 +568,39 @@
             const totalSeasons = seasonProgress.length;
 
             return (
-                <div className="card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg">
+                <div className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg transition-opacity ${isHidden ? 'opacity-50' : ''}`}>
                     <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-3">
                             {info?.profession && PROFESSION_ICONS[info.profession]
-                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-12 h-12" />
+                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className={`w-12 h-12 ${isHidden ? 'grayscale' : ''}`} />
                                 : <User className="text-gw2-gold" size={24} />
                             }
                             <div>
                                 <h3 className="text-lg font-bold text-gray-100 font-display">
                                     {charName}
-                                    {info && <span className="ml-2 text-sm text-gray-400 font-normal font-sans">{info.race} {info.profession}</span>}
+                                    {info && <span className="ml-2 text-sm text-gray-400 font-normal font-sans">Lv.{info.level} {info.race} {info.profession}</span>}
+                                    {isHidden && <span className="ml-2 text-xs text-gray-500 font-normal font-sans italic">Hidden from Story view</span>}
                                 </h3>
                                 <p className="text-xs text-gray-400">
                                     <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setExpanded(!expanded)}
-                            className="p-1 hover:bg-stone-700 rounded transition-colors"
-                        >
-                            {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => onToggleVisibility(charName)}
+                                className={`p-1 rounded transition-colors ${isHidden ? 'text-gray-600 hover:text-gray-300' : 'text-gray-400 hover:text-white'}`}
+                                title={isHidden ? 'Show in Story view' : 'Hide from Story view'}
+                            >
+                                {isHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                            <button
+                                onClick={() => setExpanded(!expanded)}
+                                className="p-1 hover:bg-stone-700 rounded transition-colors"
+                            >
+                                {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            </button>
+                        </div>
                     </div>
                     {expanded && (
                         <div className="p-4 border-t border-stone-800 space-y-2">
@@ -632,6 +656,18 @@
             const [showStaleBanner, setShowStaleBanner] = useState(false);
             const [viewMode, setViewMode] = useState('season');
             const [accountName, setAccountName] = useState('');
+            const [hiddenChars, setHiddenChars] = useState(() => {
+                const stored = localStorage.getItem('gw2_hidden_chars');
+                return stored ? new Set(JSON.parse(stored)) : new Set();
+            });
+            const toggleCharVisibility = useCallback((name) => {
+                setHiddenChars(prev => {
+                    const next = new Set(prev);
+                    next.has(name) ? next.delete(name) : next.add(name);
+                    localStorage.setItem('gw2_hidden_chars', JSON.stringify([...next]));
+                    return next;
+                });
+            }, []);
 
             const fetchData = useCallback(async (key) => {
                 setLoading(true);
@@ -697,7 +733,7 @@
                             }
                             if(coreRes.ok) {
                                 const coreData = await coreRes.json();
-                                charInfoMap[name] = { race: coreData.race, profession: coreData.profession };
+                                charInfoMap[name] = { race: coreData.race, profession: coreData.profession, level: coreData.level };
                             }
                         });
                         await Promise.all(promises);
@@ -1024,6 +1060,30 @@
                 setCachedAt(null);
             };
 
+            const visibleData = useMemo(() => {
+                if (!data || hiddenChars.size === 0) return data;
+                return data.map(season => {
+                    const filteredCharData = {};
+                    Object.entries(season.charData).forEach(([name, d]) => {
+                        if (!hiddenChars.has(name)) filteredCharData[name] = d;
+                    });
+                    let recommendation = null;
+                    if (season.owned !== false) {
+                        let topPct = -1;
+                        Object.entries(filteredCharData).forEach(([name, d]) => {
+                            if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
+                                const pct = d.progress / d.total;
+                                if (pct > topPct || (pct === topPct && d.progress > (recommendation?.progress || 0))) {
+                                    topPct = pct;
+                                    recommendation = { name, ...d };
+                                }
+                            }
+                        });
+                    }
+                    return { ...season, charData: filteredCharData, recommendation };
+                });
+            }, [data, hiddenChars]);
+
             if (!hasAccess) {
                 if (oauthPending) {
                     return (
@@ -1222,12 +1282,26 @@
                                     </div>
                                 </div>
 
-                                <AccountSummary data={data} />
-                                <HeroRecommendation data={data} charInfo={charInfo} />
+                                <AccountSummary data={visibleData} />
+                                <HeroRecommendation data={visibleData} charInfo={charInfo} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
+                                {viewMode === 'season' && hiddenChars.size > 0 && (
+                                    <div className="flex items-center justify-center gap-2 mb-4 text-sm text-gray-500">
+                                        <EyeOff size={14} />
+                                        <span>{hiddenChars.size} character{hiddenChars.size > 1 ? 's' : ''} hidden</span>
+                                        <span className="text-gray-700">·</span>
+                                        <button
+                                            onClick={() => setViewMode('character')}
+                                            className="text-gw2-gold-light hover:text-gw2-gold transition-colors"
+                                        >
+                                            Manage
+                                        </button>
+                                    </div>
+                                )}
+
                                 {viewMode === 'season' ? (
-                                    data.map(season => (
+                                    visibleData.map(season => (
                                         <SeasonCard 
                                             key={season.id} 
                                             season={season} 
@@ -1248,6 +1322,8 @@
                                                 charName={name}
                                                 charInfo={charInfo}
                                                 seasons={data}
+                                                isHidden={hiddenChars.has(name)}
+                                                onToggleVisibility={toggleCharVisibility}
                                             />
                                         ))
                                 )}

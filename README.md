@@ -11,8 +11,11 @@ A single-page web app that tracks your story journal progress across all charact
 - **"Continue Your Journey" recommendation** highlighting the character and story closest to completion
 - **Account summary** showing total characters, stories completed, and overall completion percentage
 - **By Story / By Character views** to browse progress from either angle
+- **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions
+- **Character details** — each character displays their level, race, and profession with GW2 profession icons
 - **Expansion ownership detection** — stories you don't own are dimmed and excluded from stats
-- **Session caching** with a staleness indicator so repeat visits load instantly
+- **Thematic story colors** — each story season is tinted with its in-game journal color (jungle green for HoT, purple for PoF, etc.)
+- **Persistent caching** with a staleness banner so repeat visits load instantly without forced refreshes
 - **Two ways to log in:**
   - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click
   - **Manual API key** — paste a key from ArenaNet's API settings
