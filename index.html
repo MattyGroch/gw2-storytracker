@@ -279,7 +279,7 @@
                 <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-gw2-gold-dark/15 border border-gw2-gold-dark/40' : 'hover:bg-white/5'}`}>
                     <div className="flex items-center gap-3 flex-1">
                         {info?.profession && PROFESSION_ICONS[info.profession]
-                            ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-5 h-5 shrink-0" />
+                            ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-8 h-8 shrink-0" />
                             : <User size={16} className={isRecommended ? "text-gw2-gold-light" : "text-gray-500"} />
                         }
                         <div className="flex flex-col">
@@ -532,7 +532,7 @@
                     <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-3">
                             {info?.profession && PROFESSION_ICONS[info.profession]
-                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-8 h-8" />
+                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-12 h-12" />
                                 : <User className="text-gw2-gold" size={24} />
                             }
                             <div>
@@ -1087,6 +1087,8 @@
                             <a href="tos.html" className="hover:text-gray-400 transition-colors">Terms of Service</a>
                             <span className="mx-1.5">·</span>
                             <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                            <span className="mx-1.5">·</span>
+                            <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
                         </footer>
                     </div>
                 );
@@ -1228,6 +1230,8 @@
                         <a href="tos.html" className="hover:text-gray-400 transition-colors">Terms of Service</a>
                         <span className="mx-1.5">·</span>
                         <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
                     </footer>
                 </div>
             );
