@@ -186,6 +186,18 @@
             'Janthir Wilds': 'JanthirWilds',
         };
 
+        const PROFESSION_ICONS = {
+            Guardian:     'https://render.guildwars2.com/file/28D46E95F70834CE45640375FCDB0DEAF198325B/716635.png',
+            Warrior:      'https://render.guildwars2.com/file/09903302A30373E52F49CBA948D4A268D30A5E39/716647.png',
+            Revenant:     'https://render.guildwars2.com/file/FF240FFCF7D86A0436450FB610AB21716D5B6AA7/965716.png',
+            Necromancer:  'https://render.guildwars2.com/file/08BD360F557115260FA4D71E6F76ACCCF59FF70F/716639.png',
+            Mesmer:       'https://render.guildwars2.com/file/B2D21D2FFDB5C95CDC72B91BB02F60080F0F463D/716638.png',
+            Elementalist: 'https://render.guildwars2.com/file/0303027C1F73E97F5F011ECFCE9C9A40767BB747/716633.png',
+            Thief:        'https://render.guildwars2.com/file/5C092FE9351A2DF820B1B5719B5F5097D20633EE/716644.png',
+            Ranger:       'https://render.guildwars2.com/file/9BFA11F4D5114FBF11AFBEF00F249C3934AD62AD/716643.png',
+            Engineer:     'https://render.guildwars2.com/file/1E90D49793D5BAFDE2DFDC95089FDF9A997401F1/716634.png',
+        };
+
         // --- gw2.me OAuth2 Configuration ---
         const GW2ME_CLIENT_ID = '3bb521a5-afec-4293-8186-e28bc86fe131';
         const GW2ME_REDIRECT_URI = window.location.origin + window.location.pathname;
@@ -266,7 +278,10 @@
             return (
                 <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-gw2-gold-dark/15 border border-gw2-gold-dark/40' : 'hover:bg-white/5'}`}>
                     <div className="flex items-center gap-3 flex-1">
-                        <User size={16} className={isRecommended ? "text-gw2-gold-light" : "text-gray-500"} />
+                        {info?.profession && PROFESSION_ICONS[info.profession]
+                            ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-5 h-5 shrink-0" />
+                            : <User size={16} className={isRecommended ? "text-gw2-gold-light" : "text-gray-500"} />
+                        }
                         <div className="flex flex-col">
                             <span className={`text-sm font-medium ${isRecommended ? 'text-amber-200' : 'text-gray-300'}`}>
                                 {charName}
@@ -516,7 +531,10 @@
                 <div className="card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg">
                     <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-3">
-                            <User className="text-gw2-gold" size={24} />
+                            {info?.profession && PROFESSION_ICONS[info.profession]
+                                ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-8 h-8" />
+                                : <User className="text-gw2-gold" size={24} />
+                            }
                             <div>
                                 <h3 className="text-lg font-bold text-gray-100 font-display">
                                     {charName}
