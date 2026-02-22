@@ -1,21 +1,35 @@
 # Guild Wars 2 Story Tracker
 
-A single-page web app that tracks your story journal progress across all characters on your Guild Wars 2 account and recommends which character to play next for each season.
+A single-page web app that tracks your story journal progress across all characters on your Guild Wars 2 account and recommends which character to play next.
 
-**Live site:** [mattygroch.github.io/gw2-storytracker](https://mattygroch.github.io/gw2-storytracker/)
+**Live site:** [gw2storytracker.com](https://gw2storytracker.com) | [GitHub Pages mirror](https://mattygroch.github.io/gw2-storytracker/)
 
 ## Features
 
-- **Quest-level progress tracking** across all 12 story seasons — from the core Personal Story through Visions of Eternity
-- **Race-aware progress** for the Personal Story, filtering out story variants that don't apply to each character's race
-- **Per-character breakdown** showing exactly how far each character has progressed in every season
-- **"Next Up" recommendations** highlighting the character with the most progress in each incomplete season
-- **Fast loading** using a local quest database instead of runtime API calls
+- **Quest-level progress tracking** across all story seasons — from the core Personal Story through the latest expansions
+- **Race-aware progress** for the Personal Story, filtering out story arcs that don't apply to each character's race
+- **"Continue Your Journey" recommendation** highlighting the character and story closest to completion
+- **Account summary** showing total characters, stories completed, and overall completion percentage
+- **By Story / By Character views** to browse progress from either angle
+- **Expansion ownership detection** — stories you don't own are dimmed and excluded from stats
+- **Session caching** with a staleness indicator so repeat visits load instantly
+- **Two ways to log in:**
+  - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click
+  - **Manual API key** — paste a key from ArenaNet's API settings
+- **GW2-themed UI** with Cinzel display font, gold/amber palette, and a custom compass-rose logo
 
-## Setup
+## Getting Started
+
+### Option A: Login with gw2.me (recommended)
+
+1. Open the [live site](https://gw2storytracker.com).
+2. Click **Login with gw2.me** and authorize the app.
+3. That's it — no API key management required.
+
+### Option B: Manual API key
 
 1. Go to [account.arena.net/applications](https://account.arena.net/applications) and create an API key with **account**, **characters**, and **progression** permissions.
-2. Open the [live site](https://mattygroch.github.io/gw2-storytracker/) and enter your API key.
+2. Open the [live site](https://gw2storytracker.com) and enter your API key.
 3. Your key is stored in `localStorage` so you only need to enter it once per browser.
 
 ## How It Works
@@ -24,11 +38,12 @@ The app fetches data from the [Guild Wars 2 API](https://wiki.guildwars2.com/wik
 
 - `/v2/stories/seasons` and `/v2/stories` for season and story metadata
 - `/v2/characters/{name}/quests` for each character's completed quests
-- `/v2/characters/{name}/core` for each character's race
+- `/v2/characters/{name}/core` for each character's race and profession
+- `/v2/account` for expansion ownership and account display name
 
-Quest-to-story mappings come from a pre-built `quest-data.json` file (sourced from `/v2/quests`) so the app doesn't need to make hundreds of API calls at runtime to resolve quest IDs.
+Quest-to-story mappings come from a pre-built `quest-data.json` file (sourced from `/v2/quests`) so the app doesn't need to make hundreds of API calls at runtime.
 
-Progress is calculated at the individual quest level for most seasons, with a fallback to story-level tracking for the newest content where quest data isn't yet available in the API.
+When using gw2.me, the app obtains short-lived API subtokens (~10 minutes) via OAuth2 with PKCE. These subtokens are used identically to API keys for GW2 API calls.
 
 ## Tech Stack
 
@@ -36,6 +51,16 @@ Progress is calculated at the individual quest level for most seasons, with a fa
 - Tailwind CSS (CDN)
 - Babel Standalone (in-browser JSX)
 - No build step — single `index.html` file
+
+## Self-Hosting with Docker
+
+The app can be deployed as a Docker container behind a Traefik reverse proxy:
+
+```bash
+docker compose up -d
+```
+
+The included `docker-compose.yml` configures Traefik labels for HTTPS with automatic certificate provisioning. The container runs nginx on port 8080.
 
 ## Updating the Quest Database
 
