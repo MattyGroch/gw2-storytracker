@@ -19,6 +19,8 @@ A single-page web app that tracks your story journal progress across all charact
 - **Two ways to log in:**
   - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click
   - **Manual API key** — paste a key from ArenaNet's API settings
+- **Responsive design** — fully usable on mobile devices with adaptive layouts for every view
+- **Interactive demo** — [try the demo](https://gw2storytracker.com/demo.html) with sample data, no login required
 - **GW2-themed UI** with Cinzel display font, gold/amber palette, and a custom compass-rose logo
 
 ## Getting Started
