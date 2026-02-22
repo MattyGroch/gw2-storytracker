@@ -175,7 +175,8 @@
         const API_BASE = 'https://api.guildwars2.com/v2';
         const MY_STORY_SEASON_ID = '215AAA0F-CDAC-4F93-86DA-C155A99B5784';
         const MY_STORY_QUESTS_PER_PATH = 49;
-        const CACHE_KEY = 'gw2_session_cache';
+        const CACHE_KEY = 'gw2_data_cache';
+        const STALE_THRESHOLD_MS = 60 * 60 * 1000;
 
         const EXPANSION_MAP = {
             'Heart of Thorns': 'HeartOfThorns',
@@ -580,6 +581,7 @@
             const [charInfo, setCharInfo] = useState({});
             const [cachedAt, setCachedAt] = useState(null);
             const [staleText, setStaleText] = useState('');
+            const [showStaleBanner, setShowStaleBanner] = useState(false);
             const [viewMode, setViewMode] = useState('season');
             const [accountName, setAccountName] = useState('');
 
@@ -760,7 +762,7 @@
                     setLoading(false);
 
                     try {
-                        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+                        localStorage.setItem(CACHE_KEY, JSON.stringify({
                             data: cacheableSeasons,
                             charInfo: charInfoMap,
                             accountName: displayName,
@@ -846,13 +848,13 @@
                 })();
             }, []);
 
-            // Initial data load (cache or fresh fetch)
+            // Initial data load — prefer cached data, only fetch if no cache exists
             useEffect(() => {
                 if (hasOAuthCallback) return;
                 if (!hasAccess || data) return;
 
                 try {
-                    const raw = sessionStorage.getItem(CACHE_KEY);
+                    const raw = localStorage.getItem(CACHE_KEY);
                     if (raw) {
                         const cached = JSON.parse(raw);
                         setData(cached.data);
@@ -882,7 +884,10 @@
 
             useEffect(() => {
                 if (!cachedAt) return;
-                const update = () => setStaleText(formatRelativeTime(cachedAt));
+                const update = () => {
+                    setStaleText(formatRelativeTime(cachedAt));
+                    setShowStaleBanner(Date.now() - cachedAt > STALE_THRESHOLD_MS);
+                };
                 update();
                 const id = setInterval(update, 30000);
                 return () => clearInterval(id);
@@ -959,7 +964,7 @@
                 localStorage.removeItem('gw2_api_key');
                 localStorage.removeItem('gw2me_access_token');
                 localStorage.removeItem('gw2me_account_id');
-                sessionStorage.removeItem(CACHE_KEY);
+                localStorage.removeItem(CACHE_KEY);
                 setApiKey('');
                 setGw2meToken('');
                 setGw2meAccountId('');
@@ -1103,6 +1108,30 @@
                             </div>
                         )}
                     </nav>
+
+                    {showStaleBanner && !loading && data && (
+                        <div className="bg-gw2-gold-dark/20 border-b border-gw2-gold-dark/40">
+                            <div className="max-w-4xl mx-auto px-4 py-2.5 flex items-center justify-between">
+                                <p className="text-sm text-gray-300">
+                                    Your story data is from <span className="text-gw2-gold-light font-medium">{staleText}</span> and may be outdated.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => { setShowStaleBanner(false); handleRefresh(); }}
+                                        className="text-sm font-medium text-gw2-gold hover:text-gw2-gold-light transition-colors flex items-center gap-1.5"
+                                    >
+                                        <RefreshCw size={14} /> Refresh now
+                                    </button>
+                                    <button
+                                        onClick={() => setShowStaleBanner(false)}
+                                        className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Main Content */}
                     <div className="max-w-4xl mx-auto px-4 py-8">
