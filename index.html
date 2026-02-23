@@ -487,45 +487,52 @@
             );
         };
 
-        const AccountSummary = ({ data }) => {
-            const stats = useMemo(() => {
-                const charNames = Object.keys(data[0]?.charData || {});
-                const owned = data.filter(s => s.owned !== false);
-                let storiesCompleted = 0;
-                let totalProgress = 0;
-                let totalPossible = 0;
+        const STORY_SHORT_NAMES = {
+            'My Story': 'My Story',
+            'Living World Season 1': 'LWS1',
+            'Living World Season 2': 'LWS2',
+            'Heart of Thorns': 'HoT',
+            'Living World Season 3': 'LWS3',
+            'Path of Fire': 'PoF',
+            'Living World Season 4': 'LWS4',
+            'The Icebrood Saga': 'IBS',
+            'End of Dragons': 'EoD',
+            'Secrets of the Obscure': 'SotO',
+            'Janthir Wilds': 'JW',
+            'Visions of Eternity': 'VoE',
+        };
 
-                owned.forEach(season => {
-                    if (Object.values(season.charData).some(c => c.progress >= c.total)) storiesCompleted++;
-                    Object.values(season.charData).forEach(c => {
-                        totalProgress += c.progress;
-                        totalPossible += c.total;
-                    });
-                });
-
-                return {
-                    totalChars: charNames.length,
-                    storiesCompleted,
-                    totalStories: owned.length,
-                    overallPct: totalPossible > 0 ? Math.round((totalProgress / totalPossible) * 100) : 0
-                };
-            }, [data]);
-
+        const AccountSummary = ({ data, onNavigate }) => {
             return (
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
-                    <div className="card-bg rounded-lg p-3 sm:p-4 border border-gw2-gold-dark/30 text-center">
-                        <p className="text-xl sm:text-2xl font-bold text-gw2-gold-light font-display">{stats.totalChars}</p>
-                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Characters</p>
-                    </div>
-                    <div className="card-bg rounded-lg p-3 sm:p-4 border border-gw2-gold-dark/30 text-center">
-                        <p className="text-xl sm:text-2xl font-bold text-gray-100 font-display">
-                            <span className="text-green-400">{stats.storiesCompleted}</span> / {stats.totalStories}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Stories Completed</p>
-                    </div>
-                    <div className="card-bg rounded-lg p-3 sm:p-4 border border-gw2-gold-dark/30 text-center">
-                        <p className="text-xl sm:text-2xl font-bold text-gw2-gold-light font-display">{stats.overallPct}%</p>
-                        <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Overall Completion</p>
+                <div className="card-bg rounded-lg border border-stone-800 p-3 sm:p-4 mb-6">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5 text-center">Story Completion Overview</p>
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
+                        {data.filter(s => s.owned !== false).map(season => {
+                            const chars = Object.values(season.charData);
+                            const completed = chars.some(c => c.progress >= c.total);
+                            const inProgress = !completed && chars.some(c => c.progress > 0);
+                            const color = STORY_COLORS[season.name];
+                            const label = STORY_SHORT_NAMES[season.name] || season.name;
+                            const pillClass = completed
+                                ? 'border-stone-700 text-gray-200'
+                                : inProgress
+                                    ? 'border-stone-700/60 text-gray-300 opacity-75'
+                                    : 'border-stone-800 text-gray-500 opacity-50';
+                            const borderColor = completed ? color : inProgress ? color + 'aa' : color + '60';
+                            return (
+                                <button
+                                    key={season.id}
+                                    title={season.name}
+                                    onClick={() => onNavigate && onNavigate('season', season.id)}
+                                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border cursor-pointer hover:border-gw2-gold-dark hover:opacity-100 transition-all ${pillClass}`}
+                                    style={color ? { borderLeft: `3px solid ${borderColor}` } : undefined}
+                                >
+                                    {completed && <CheckCircle2 size={12} className="text-green-500 shrink-0" />}
+                                    {inProgress && <Loader2 size={12} className="text-gw2-gold shrink-0" />}
+                                    {label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             );
@@ -1382,15 +1389,40 @@
                                 <p className="text-sm text-gray-300 mb-4">
                                     If you recently added a new API key or account to your gw2.me profile, you'll need to revoke access for this app and log back in to update your shared accounts.
                                 </p>
-                                <div className="flex items-center gap-3">
-                                    <a href="https://gw2.me/applications" target="_blank" rel="noopener noreferrer"
-                                        className="flex-1 text-center px-4 py-2 rounded-lg bg-gw2-gold-dark/30 border border-gw2-gold-dark text-gw2-gold-light text-sm font-medium hover:bg-gw2-gold-dark/50 transition-colors">
-                                        Manage on gw2.me
-                                    </a>
-                                    <button onClick={() => setShowGw2meInfo(false)}
-                                        className="px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
-                                        Close
+                                <div className="flex flex-col gap-2">
+                                    <button onClick={async () => {
+                                        try {
+                                            setShowGw2meInfo(false);
+                                            setLoading(true);
+                                            setStatus('Fetching account list from gw2.me...');
+                                            const accounts = await getGw2meAccounts(gw2meToken);
+                                            if (accounts && accounts.length > 1) {
+                                                setGw2meAccounts(accounts);
+                                                setData(null);
+                                                setLoading(false);
+                                                setStatus('');
+                                            } else {
+                                                setStatus('Only one account found.');
+                                                setLoading(false);
+                                            }
+                                        } catch (err) {
+                                            setError('Failed to fetch accounts. Try signing out and back in.');
+                                            setLoading(false);
+                                        }
+                                    }}
+                                        className="w-full text-center px-4 py-2 rounded-lg bg-gw2-gold-dark/30 border border-gw2-gold-dark text-gw2-gold-light text-sm font-medium hover:bg-gw2-gold-dark/50 transition-colors">
+                                        Switch Account
                                     </button>
+                                    <div className="flex items-center gap-3">
+                                        <a href="https://gw2.me/applications" target="_blank" rel="noopener noreferrer"
+                                            className="flex-1 text-center px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
+                                            Manage on gw2.me
+                                        </a>
+                                        <button onClick={() => setShowGw2meInfo(false)}
+                                            className="px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
+                                            Close
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1471,7 +1503,7 @@
                                     )}
                                 </div>
 
-                                <AccountSummary data={visibleData} />
+                                <AccountSummary data={visibleData} onNavigate={navigateTo} />
                                 <HeroRecommendation data={visibleData} charInfo={charInfo} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
