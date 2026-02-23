@@ -276,6 +276,130 @@
             'Visions of Eternity':      '#c85018',
         };
 
+        const SEASON_GROUPS = {
+            '215AAA0F-CDAC-4F93-86DA-C155A99B5784': [ // My Story
+                { label: 'Ch. 1-3', count: 1 },
+                { label: 'Ch. 4-6', count: 1 },
+                { label: 'Ch. 7-8', count: 1 }
+            ],
+            'A49D0CD7-E725-4141-8E10-180F1CED7CAF': [ // Living World Season 1
+                { label: 'Ep. 1', count: 1 }, { label: 'Ep. 2', count: 1 },
+                { label: 'Ep. 3', count: 1 }, { label: 'Ep. 4', count: 1 },
+                { label: 'Ep. 5', count: 1 }
+            ],
+            'A515A1D3-4BD7-4594-AE30-2C5D05FF5960': [ // Living World Season 2
+                { label: 'Ep. 1', count: 1 }, { label: 'Ep. 2', count: 1 },
+                { label: 'Ep. 3', count: 1 }, { label: 'Ep. 4', count: 1 },
+                { label: 'Ep. 5', count: 1 }, { label: 'Ep. 6', count: 1 },
+                { label: 'Ep. 7', count: 1 }, { label: 'Ep. 8', count: 1 }
+            ],
+            'B8901E58-DC9D-4525-ADB2-79C93593291E': [ // Heart of Thorns
+                { label: 'Act 1', count: 6 }, { label: 'Act 2', count: 4 },
+                { label: 'Act 3', count: 4 }, { label: 'Act 4', count: 2 }
+            ],
+            '09766A86-D88D-4DF2-9385-259E9A8CA583': [ // Living World Season 3
+                { label: 'Ep. 1', count: 1 }, { label: 'Ep. 2', count: 1 },
+                { label: 'Ep. 3', count: 1 }, { label: 'Ep. 4', count: 1 },
+                { label: 'Ep. 5', count: 1 }, { label: 'Ep. 6', count: 1 }
+            ],
+            'EAB597C0-C484-4FD3-9430-31433BAC81B6': [ // Path of Fire
+                { label: 'Act 1', count: 4 }, { label: 'Act 2', count: 4 },
+                { label: 'Act 3', count: 5 }
+            ],
+            'C22AFD21-667A-4AA8-8210-AC74EAEE58BB': [ // Living World Season 4
+                { label: 'Ep. 1', count: 1 }, { label: 'Ep. 2', count: 1 },
+                { label: 'Ep. 3', count: 1 }, { label: 'Ep. 4', count: 1 },
+                { label: 'Ep. 5', count: 1 }, { label: 'Ep. 6', count: 1 }
+            ],
+            'EDCAE800-302A-4D9B-8331-3CC769ADA0B3': [ // The Icebrood Saga
+                { label: 'Prologue', count: 1 }, { label: 'Ep. 1', count: 1 },
+                { label: 'Ep. 2', count: 1 }, { label: 'Visions', count: 1 },
+                { label: 'Ep. 3', count: 1 }, { label: 'Ep. 4', count: 1 },
+                { label: 'Ep. 5', count: 1 }
+            ],
+            'D1B709AB-92B6-4EE9-8B40-2B7C628E5022': [ // End of Dragons
+                { label: 'Act 1', count: 5 }, { label: 'Act 2', count: 3 },
+                { label: 'Act 3', count: 3 }, { label: 'Act 4', count: 2 },
+                { label: 'Act 5', count: 3 }
+            ],
+            'AEE99452-D323-4ABB-8F49-D7C0A752CBD1': [ // Secrets of the Obscure
+                { label: 'Act 1', count: 4 }, { label: 'Act 2', count: 4 },
+                { label: 'Act 3', count: 3 }
+            ],
+            '5EFFBB71-7C6D-4594-A87D-88B8CF38FDA3': [ // Janthir Wilds
+                { label: 'Act 1', count: 6 }, { label: 'Act 2', count: 5 }
+            ],
+            '5F35F25C-AE33-4D92-A061-227CE54FA5DC': [ // Visions of Eternity
+                { label: 'Act 1', count: 5 }, { label: 'Act 2', count: 4 }
+            ]
+        };
+
+        function computeSeasonPips(seasonId, stories, storyQuestCounts, useQuestLevel) {
+            const groups = SEASON_GROUPS[seasonId];
+            if (!groups || groups.length <= 1) return [];
+
+            if (seasonId === MY_STORY_SEASON_ID) {
+                const n = groups.length;
+                return Array.from({length: n - 1}, (_, i) => ((i + 1) / n) * 100);
+            }
+
+            const totalItems = useQuestLevel
+                ? stories.reduce((sum, s) => sum + (storyQuestCounts[s.id] || 0), 0)
+                : stories.length;
+            if (totalItems === 0) return [];
+
+            const pips = [];
+            let cumulative = 0;
+            let storyIdx = 0;
+            for (let g = 0; g < groups.length - 1; g++) {
+                const count = groups[g].count;
+                if (useQuestLevel) {
+                    for (let i = 0; i < count && storyIdx < stories.length; i++, storyIdx++) {
+                        cumulative += storyQuestCounts[stories[storyIdx].id] || 0;
+                    }
+                } else {
+                    cumulative += count;
+                    storyIdx += count;
+                }
+                pips.push((cumulative / totalItems) * 100);
+            }
+            return pips;
+        }
+
+        function computeGroupBoundaries(seasonId, stories, storyQuestCounts, useQuestLevel) {
+            const groups = SEASON_GROUPS[seasonId];
+            if (!groups) return [];
+
+            if (seasonId === MY_STORY_SEASON_ID) {
+                const n = groups.length;
+                return groups.map((g, i) => ({ cumulative: Math.round(((i + 1) / n) * 49), label: g.label }));
+            }
+
+            const boundaries = [];
+            let cumulative = 0;
+            let storyIdx = 0;
+            for (const group of groups) {
+                if (useQuestLevel) {
+                    for (let i = 0; i < group.count && storyIdx < stories.length; i++, storyIdx++) {
+                        cumulative += storyQuestCounts[stories[storyIdx].id] || 0;
+                    }
+                } else {
+                    cumulative += group.count;
+                    storyIdx += group.count;
+                }
+                boundaries.push({ cumulative, label: group.label });
+            }
+            return boundaries;
+        }
+
+        function getCurrentGroupLabel(boundaries, progress, total) {
+            if (!boundaries || boundaries.length === 0 || progress <= 0 || progress >= total) return null;
+            for (const b of boundaries) {
+                if (progress < b.cumulative) return b.label;
+            }
+            return null;
+        }
+
         // --- gw2.me OAuth2 Configuration ---
         const GW2ME_CLIENT_ID = '3bb521a5-afec-4293-8186-e28bc86fe131';
         const GW2ME_REDIRECT_URI = window.location.origin + window.location.pathname;
@@ -315,9 +439,10 @@
             return json.accounts;
         }
 
-        async function getGw2meSubtoken(accessToken, accountId) {
+        async function getGw2meSubtoken(accessToken, accountId, { signal } = {}) {
             const res = await fetch(`${GW2ME_API_BASE}/accounts/${accountId}/subtoken`, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
+                headers: { 'Authorization': `Bearer ${accessToken}` },
+                signal
             });
             if (!res.ok) throw new Error('gw2.me session expired. Please log in again.');
             const json = await res.json();
@@ -336,22 +461,29 @@
 
         // --- Components ---
 
-        const ProgressBar = ({ current, total, colorClass = "bg-gw2-gold" }) => {
+        const ProgressBar = ({ current, total, colorClass = "bg-gw2-gold", pips = [] }) => {
             const percentage = Math.min(100, Math.max(0, (current / total) * 100));
             return (
-                <div className="w-full h-2 rounded-full progress-bar-bg overflow-hidden">
+                <div className="w-full h-2 rounded-full progress-bar-bg overflow-hidden relative">
                     <div 
                         className={`h-full ${colorClass} transition-all duration-500`} 
                         style={{ width: `${percentage}%` }}
                     />
+                    {pips.map((pos, i) => (
+                        <div key={i}
+                            className="absolute top-0 h-full w-px bg-white/30"
+                            style={{ left: `${pos}%` }}
+                        />
+                    ))}
                 </div>
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, unit = "Chapters", isRecommended, charInfo, onNavigate }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Chapters", isRecommended, charInfo, onNavigate, pips, groupBoundaries, showPips = true }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
             const info = charInfo?.[charName];
+            const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total);
 
             return (
                 <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-gw2-gold-dark/15 border border-gw2-gold-dark/40' : 'hover:bg-white/5'}`}>
@@ -371,17 +503,18 @@
                             {info && <span className="text-xs text-gray-500 sm:hidden">Lv.{info.level} {info.race} {info.profession}</span>}
                             <span className="text-xs text-gray-500">
                                 {progress} / {total} {unit} ({percentage}%)
+                                {groupLabel && <span className="text-gray-600"> · {groupLabel}</span>}
                             </span>
                         </div>
                     </div>
                     <div className="w-16 sm:w-24 ml-2 sm:ml-4">
-                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : (isRecommended ? "bg-gw2-gold" : "bg-gray-500")} />
+                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : (isRecommended ? "bg-gw2-gold" : "bg-gray-500")} pips={showPips ? pips : []} />
                     </div>
                 </div>
             );
         };
 
-        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated }) => {
+        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true }) => {
             const [expanded, setExpanded] = useState(false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
@@ -485,6 +618,9 @@
                                     isRecommended={true}
                                     charInfo={charInfo}
                                     onNavigate={onNavigate}
+                                    pips={season.pips}
+                                    groupBoundaries={season.groupBoundaries}
+                                    showPips={showPips}
                                 />
                              )}
 
@@ -500,6 +636,9 @@
                                             isRecommended={char.name === recommendedChar?.name}
                                             charInfo={charInfo}
                                             onNavigate={onNavigate}
+                                            pips={season.pips}
+                                            groupBoundaries={season.groupBoundaries}
+                                            showPips={showPips}
                                         />
                                     ))}
                                 </div>
@@ -636,7 +775,7 @@
             );
         };
 
-        const HeroRecommendation = ({ data, charInfo }) => {
+        const HeroRecommendation = ({ data, charInfo, showPips = true }) => {
             const [collapsed, setCollapsed] = useState(() => {
                 const stored = localStorage.getItem('gw2_hero_collapsed');
                 return stored !== null ? stored === 'true' : false;
@@ -664,7 +803,9 @@
                                     progress: d.progress,
                                     total: d.total,
                                     unit: season.unit,
-                                    pct: Math.round(pct * 100)
+                                    pct: Math.round(pct * 100),
+                                    pips: season.pips,
+                                    groupBoundaries: season.groupBoundaries
                                 };
                             }
                         }
@@ -676,6 +817,7 @@
 
             if (!best) return null;
             const info = charInfo?.[best.charName];
+            const heroGroupLabel = getCurrentGroupLabel(best.groupBoundaries, best.progress, best.total);
 
             return (
                 <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-4 sm:p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
@@ -692,13 +834,13 @@
                                     <p className="text-sm text-gray-400 mt-1">
                                         {best.charName}
                                         {info && <span className="text-gray-500"> · Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
-                                        <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
+                                        <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}{heroGroupLabel && <> · {heroGroupLabel}</>}</span>
                                     </p>
                                 </div>
                                 <p className="text-3xl font-bold text-gw2-gold-light font-display mt-3 sm:mt-0">{best.pct}%</p>
                             </div>
                             <div className="mt-4">
-                                <ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" />
+                                <ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" pips={showPips ? best.pips : []} />
                             </div>
                         </>
                     )}
@@ -706,7 +848,7 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded }) => {
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded, showPips = true }) => {
             const [expanded, setExpanded] = useState(defaultExpanded || false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
@@ -738,7 +880,9 @@
                             id: season.id,
                             progress: cd?.progress || 0,
                             total: cd?.total || 0,
-                            unit: season.unit || 'Chapters'
+                            unit: season.unit || 'Chapters',
+                            pips: season.pips,
+                            groupBoundaries: season.groupBoundaries
                         };
                     })
                     .filter(s => s.total > 0);
@@ -804,6 +948,7 @@
                                 const pct = Math.round((sp.progress / sp.total) * 100);
                                 const isComplete = sp.progress >= sp.total;
                                 const hasProgress = sp.progress > 0;
+                                const spGroupLabel = getCurrentGroupLabel(sp.groupBoundaries, sp.progress, sp.total);
                                 return (
                                     <div
                                         key={sp.id}
@@ -818,11 +963,14 @@
                                 ) : (
                                     <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
                                 )}
-                                                <span className="text-xs text-gray-500">{sp.progress} / {sp.total} {sp.unit} ({pct}%)</span>
+                                                <span className="text-xs text-gray-500">
+                                                    {sp.progress} / {sp.total} {sp.unit} ({pct}%)
+                                                    {spGroupLabel && <span className="text-gray-600"> · {spGroupLabel}</span>}
+                                                </span>
                                             </div>
                                         </div>
                                         <div className="w-16 sm:w-24 ml-2 sm:ml-4">
-                                            <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} />
+                                            <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} pips={showPips ? sp.pips : []} />
                                         </div>
                                     </div>
                                 );
@@ -849,6 +997,8 @@
             const [loading, setLoading] = useState(hasOAuthCallback);
             const [error, setError] = useState(null);
             const [status, setStatus] = useState(hasOAuthCallback ? 'Completing authorization...' : '');
+            const [subtokenSlow, setSubtokenSlow] = useState(false);
+            const subtokenAbortRef = useRef(null);
             const [loadProgress, setLoadProgress] = useState({ current: 0, total: 1 });
             const [data, setData] = useState(null);
             const [charInfo, setCharInfo] = useState({});
@@ -860,6 +1010,36 @@
             const [navigateTarget, setNavigateTarget] = useState(null);
             const [showGw2meInfo, setShowGw2meInfo] = useState(false);
             const [showAccessInfo, setShowAccessInfo] = useState(false);
+            const [showAppSettings, setShowAppSettings] = useState(false);
+            const appSettingsRef = useRef(null);
+            useEffect(() => {
+                if (!showAppSettings) return;
+                const handler = (e) => {
+                    if (appSettingsRef.current && !appSettingsRef.current.contains(e.target)) setShowAppSettings(false);
+                };
+                document.addEventListener('mousedown', handler);
+                return () => document.removeEventListener('mousedown', handler);
+            }, [showAppSettings]);
+            const [showPips, setShowPips] = useState(() => {
+                const stored = localStorage.getItem('gw2_show_pips');
+                return stored !== null ? stored === 'true' : false;
+            });
+            const toggleShowPips = useCallback(() => {
+                setShowPips(prev => {
+                    localStorage.setItem('gw2_show_pips', String(!prev));
+                    return !prev;
+                });
+            }, []);
+            const [hideUnowned, setHideUnowned] = useState(() => {
+                const stored = localStorage.getItem('gw2_hide_unowned');
+                return stored !== null ? stored === 'true' : false;
+            });
+            const toggleHideUnowned = useCallback(() => {
+                setHideUnowned(prev => {
+                    localStorage.setItem('gw2_hide_unowned', String(!prev));
+                    return !prev;
+                });
+            }, []);
             const [accountName, setAccountName] = useState('');
             const [hiddenChars, setHiddenChars] = useState(() => {
                 const stored = localStorage.getItem('gw2_hidden_chars');
@@ -1041,6 +1221,8 @@
 
                         const requiredAccess = EXPANSION_MAP[season.name];
                         const owned = !requiredAccess || accountAccess.includes(requiredAccess);
+                        const pips = computeSeasonPips(season.id, season.stories, storyQuestCounts, useQuestLevel);
+                        const groupBoundaries = computeGroupBoundaries(season.id, season.stories, storyQuestCounts, useQuestLevel);
 
                         return {
                             ...season,
@@ -1049,7 +1231,9 @@
                             charData: charProgressMap,
                             recommendation: owned ? bestCandidate : null,
                             owned,
-                            requiredExpansion: requiredAccess && !owned ? season.name : null
+                            requiredExpansion: requiredAccess && !owned ? season.name : null,
+                            pips,
+                            groupBoundaries
                         };
                     });
 
@@ -1156,9 +1340,10 @@
                         setOauthPending(false);
 
                         setStatus('Generating API subtoken...');
-                        const subtoken = await getGw2meSubtoken(accessToken, account.id);
+                        const subtoken = await fetchSubtokenWithSlowDetect(accessToken, account.id);
                         await fetchData(subtoken);
                     } catch (err) {
+                        if (err.name === 'AbortError') return;
                         setError(err.message);
                         setOauthPending(false);
                         setLoading(false);
@@ -1188,9 +1373,10 @@
                         try {
                             setLoading(true);
                             setStatus('Generating API subtoken...');
-                            const subtoken = await getGw2meSubtoken(gw2meToken, gw2meAccountId);
+                            const subtoken = await fetchSubtokenWithSlowDetect(gw2meToken, gw2meAccountId);
                             await fetchData(subtoken);
                         } catch (err) {
+                            if (err.name === 'AbortError') return;
                             setError('gw2.me session expired. Please log in again.');
                             logout();
                         }
@@ -1267,9 +1453,10 @@
                         setLoading(true);
                         setError(null);
                         setStatus('Generating fresh API subtoken...');
-                        const subtoken = await getGw2meSubtoken(gw2meToken, gw2meAccountId);
+                        const subtoken = await fetchSubtokenWithSlowDetect(gw2meToken, gw2meAccountId);
                         await fetchData(subtoken);
                     } catch (err) {
+                        if (err.name === 'AbortError') return;
                         setError('gw2.me session expired. Please log in again.');
                         logout();
                     }
@@ -1279,6 +1466,7 @@
             }, [authMethod, gw2meToken, gw2meAccountId, apiKey, fetchData]);
 
             const logout = () => {
+                if (subtokenAbortRef.current) { subtokenAbortRef.current.abort(); subtokenAbortRef.current = null; }
                 localStorage.removeItem('gw2_api_key');
                 localStorage.removeItem('gw2me_access_token');
                 localStorage.removeItem('gw2me_account_id');
@@ -1294,6 +1482,22 @@
                 setCachedAt(null);
                 setLoading(false);
                 setStatus('');
+                setSubtokenSlow(false);
+            };
+
+            const fetchSubtokenWithSlowDetect = async (token, accountId) => {
+                const controller = new AbortController();
+                subtokenAbortRef.current = controller;
+                setSubtokenSlow(false);
+                const timer = setTimeout(() => setSubtokenSlow(true), 15000);
+                try {
+                    const subtoken = await getGw2meSubtoken(token, accountId, { signal: controller.signal });
+                    return subtoken;
+                } finally {
+                    clearTimeout(timer);
+                    subtokenAbortRef.current = null;
+                    setSubtokenSlow(false);
+                }
             };
 
             const selectGw2meAccount = useCallback(async (account) => {
@@ -1306,9 +1510,10 @@
                     setAuthMethod('gw2me');
                     setHasAccess(true);
                     setGw2meAccounts(null);
-                    const subtoken = await getGw2meSubtoken(gw2meToken, account.id);
+                    const subtoken = await fetchSubtokenWithSlowDetect(gw2meToken, account.id);
                     await fetchData(subtoken);
                 } catch (err) {
+                    if (err.name === 'AbortError') return;
                     setError(err.message);
                     setLoading(false);
                 }
@@ -1338,14 +1543,22 @@
                         });
                     }
                     return { ...season, owned, charData: filteredCharData, recommendation, requiredExpansion: !owned ? season.name : null };
-                });
-            }, [data, hiddenChars, ownedStories]);
+                }).filter(s => !hideUnowned || s.owned !== false);
+            }, [data, hiddenChars, ownedStories, hideUnowned]);
 
             if (oauthPending) {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-4">
                         <Loader2 className="animate-spin text-gw2-gold w-12 h-12 mb-6" />
                         <p className="text-gray-300 text-sm font-medium">{status || 'Completing authorization...'}</p>
+                        {subtokenSlow && (
+                            <div className="mt-4 text-center">
+                                <p className="text-yellow-400 text-sm mb-3">gw2.me is taking longer than expected to respond...</p>
+                                <button onClick={logout} className="text-sm text-gray-400 hover:text-white border border-stone-700 hover:border-stone-600 px-4 py-2 rounded-lg transition-colors">
+                                    Return to login &amp; use API key instead
+                                </button>
+                            </div>
+                        )}
                         {error && (
                             <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm mt-6 max-w-md">
                                 <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -1507,6 +1720,40 @@
                                         <svg className="w-5 h-5 sm:w-4 sm:h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor" fillRule="evenodd" clipPath="url(#gw2me-nav)" clipRule="evenodd"><path d="M8 1a3 3 0 0 0-3 3v2.5a.5.5 0 0 1-1 0V4a4 4 0 0 1 7.615-1.715.5.5 0 1 1-.903.43A3 3 0 0 0 8 1Z"/><path d="M11.916 6.223A.5.5 0 0 0 11.5 6H5V4a3 3 0 0 1 5.712-1.285.5.5 0 1 0 .903-.43A4 4 0 0 0 4 4v2.349L2.084 9.223a.5.5 0 0 0 .062.63l5.5 5.5a.5.5 0 0 0 .708 0l5.5-5.5a.5.5 0 0 0 .062-.63l-2-3ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><defs><clipPath id="gw2me-nav"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
                                     </button>
                                 )}
+                                <div className="relative" ref={appSettingsRef}>
+                                    <button onClick={() => setShowAppSettings(p => !p)}
+                                        className={`p-1 rounded transition-colors ${showAppSettings ? 'text-gw2-gold' : 'text-gray-500 hover:text-gw2-gold-light'}`}
+                                        title="Settings">
+                                        <Settings size={20} className="sm:w-4 sm:h-4" />
+                                    </button>
+                                    {showAppSettings && (
+                                        <div className="absolute right-0 top-full mt-2 z-30 w-64 card-bg border border-stone-700 rounded-lg shadow-xl p-3">
+                                            <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wider">Settings</p>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="text-sm text-gray-300">Show act/chapter dividers on progress bars</span>
+                                                <button
+                                                    onClick={toggleShowPips}
+                                                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer ${showPips ? 'bg-gw2-gold-dark' : 'bg-stone-700'}`}
+                                                    role="switch"
+                                                    aria-checked={showPips}
+                                                >
+                                                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${showPips ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-3 mt-2">
+                                                <span className="text-sm text-gray-300">Hide unowned content</span>
+                                                <button
+                                                    onClick={toggleHideUnowned}
+                                                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer ${hideUnowned ? 'bg-gw2-gold-dark' : 'bg-stone-700'}`}
+                                                    role="switch"
+                                                    aria-checked={hideUnowned}
+                                                >
+                                                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${hideUnowned ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <button 
                                     onClick={logout}
                                     className="text-gray-400 hover:text-white flex items-center gap-2 text-sm transition-colors p-1"
@@ -1630,6 +1877,14 @@
                                 <p className="text-gray-600 text-xs mt-1">
                                     {Math.round((loadProgress.current / loadProgress.total) * 100)}%
                                 </p>
+                                {subtokenSlow && (
+                                    <div className="mt-4 text-center">
+                                        <p className="text-yellow-400 text-sm mb-3">gw2.me is taking longer than expected to respond...</p>
+                                        <button onClick={logout} className="text-sm text-gray-400 hover:text-white border border-stone-700 hover:border-stone-600 px-4 py-2 rounded-lg transition-colors">
+                                            Return to login &amp; use API key instead
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : data ? (
                             <div className="space-y-6">
@@ -1666,7 +1921,7 @@
                                 </div>
 
                                 <AccountSummary data={visibleData} onNavigate={navigateTo} ownedStories={ownedStories} onToggleOwnership={toggleStoryOwnership} />
-                                <HeroRecommendation data={visibleData} charInfo={charInfo} />
+                                <HeroRecommendation data={visibleData} charInfo={charInfo} showPips={showPips} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
                                 {isSingleChar ? (
@@ -1677,6 +1932,7 @@
                                         isHidden={false}
                                         onNavigate={navigateTo}
                                         defaultExpanded={true}
+                                        showPips={showPips}
                                     />
                                 ) : (<>
                                 {viewMode === 'season' && hiddenChars.size > 0 && (
@@ -1704,6 +1960,7 @@
                                             onNavigate={navigateTo}
                                             focusId={navigateTarget?.type === 'season' ? navigateTarget.id : null}
                                             onNavigated={() => setNavigateTarget(null)}
+                                            showPips={showPips}
                                         />
                                     ))
                                 ) : (
@@ -1726,6 +1983,7 @@
                                                 onNavigate={navigateTo}
                                                 focusId={navigateTarget?.type === 'character' ? navigateTarget.id : null}
                                                 onNavigated={() => setNavigateTarget(null)}
+                                                showPips={showPips}
                                             />
                                         ))
                                 )}
