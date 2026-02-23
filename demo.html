@@ -480,6 +480,7 @@
                                     {isHidden && <span className="ml-2 text-xs text-gray-500 font-normal font-sans italic hidden sm:inline">Hidden from Story view</span>}
                                 </h3>
                                 {info && <p className="text-xs text-gray-400 sm:hidden">Lv.{info.level} {info.race} {info.profession}</p>}
+                                {!isHidden && (<>
                                 <p className="text-xs text-gray-400">
                                     <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
                                 </p>
@@ -492,6 +493,7 @@
                                         {totalQuestsCompleted} / {totalQuestsTotal} Quests ({Math.round((totalQuestsCompleted / totalQuestsTotal) * 100 || 0)}%)
                                     </span>
                                 </div>
+                                </>)}
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
