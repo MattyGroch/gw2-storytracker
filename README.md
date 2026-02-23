@@ -2,28 +2,33 @@
 
 A single-page web app that tracks your story journal progress across all characters on your Guild Wars 2 account and recommends which character to play next.
 
-**Live site:** [gw2storytracker.com](https://gw2storytracker.com) | [GitHub Pages mirror](https://mattygroch.github.io/gw2-storytracker/)
+**Live site:** [gw2storytracker.com](https://gw2storytracker.com)
 
 ## Features
 
 - **Quest-level progress tracking** across all story seasons — from the core Personal Story through the latest expansions
 - **Race-aware progress** for the Personal Story, filtering out story arcs that don't apply to each character's race
-- **"Continue Your Journey" recommendation** highlighting the character and story closest to completion
-- **Account summary** showing total characters, stories completed, and overall completion percentage
-- **By Story / By Character views** to browse progress from either angle, with cross-view navigation (click a character to jump to their card, or click a story to jump to that season)
+- **"Continue Your Journey" recommendation** highlighting the character and story closest to completion with a progress bar and percentage
+- **Story Completion Overview** — collapsible summary showing every story season as a color-coded pill with completion status (completed, in-progress, or not started); click any pill to jump to that season
+- **By Story / By Character views** to browse progress from either angle, with cross-view navigation — click a character name to jump to their card, or click a story to jump to that season, with smooth scrolling and highlight animation
+- **Collapsible sections** — Story Completion Overview, Continue Your Journey, and individual season/character cards all collapse and expand, with state persisted across sessions
 - **Single-character mode** — accounts with one character get a streamlined layout without the view toggle
 - **Character sort options** — sort the By Character view by progress, name, level, or profession
-- **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions
+- **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions with a hidden-characters banner for quick management
 - **Character details** — each character displays their level, race, profession with GW2 profession icons, and a quest progress bar
-- **Expansion ownership detection** — stories you don't own are dimmed and excluded from stats
+- **Completion badges** — "Cleared" when any character finishes a season, "Complete" when all characters have finished
+- **Expansion ownership detection** — stories you don't own are locked and excluded from stats
 - **Thematic story colors** — each story season is tinted with its in-game journal color (jungle green for HoT, purple for PoF, etc.)
-- **Persistent caching** with a staleness banner so repeat visits load instantly without forced refreshes
+- **Persistent caching** with a staleness banner and relative timestamps so repeat visits load instantly without forced refreshes
 - **Two ways to log in:**
-  - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click; multi-account support with an account picker
+  - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click; multi-account support with an account picker and in-app account switching
   - **Manual API key** — paste a key from ArenaNet's API settings
+- **Info modals** explaining story access/ownership detection and gw2.me account management
 - **Installable as a PWA** — add to your home screen on mobile or desktop for app-like access
 - **Responsive design** — fully usable on mobile devices with adaptive layouts for every view
 - **Interactive demo** — [try the demo](https://gw2storytracker.com/demo.html) with sample data, no login required
+- **OpenGraph & Twitter Card meta tags** for rich link previews when sharing
+- **Privacy Policy & Terms of Service** pages included
 - **GW2-themed UI** with Cinzel display font, gold/amber palette, and a custom compass-rose logo
 
 ## Getting Started
@@ -49,7 +54,7 @@ The app fetches data from the [Guild Wars 2 API](https://wiki.guildwars2.com/wik
 - `/v2/characters/{name}/core` for each character's race and profession
 - `/v2/account` for expansion ownership and account display name
 
-Quest-to-story mappings come from a pre-built `quest-data.json` file (sourced from `/v2/quests`) so the app doesn't need to make hundreds of API calls at runtime.
+Quest-to-story mappings come from a pre-built `quest-data.json` file (sourced from `/v2/quests`) so the app doesn't need to make hundreds of API calls at runtime. Characters are processed in batches of 5 to stay within API rate limits.
 
 When using gw2.me, the app obtains short-lived API subtokens (~10 minutes) via OAuth2 with PKCE. These subtokens are used identically to API keys for GW2 API calls.
 
@@ -68,7 +73,11 @@ The app can be deployed as a Docker container behind a Traefik reverse proxy:
 docker compose up -d
 ```
 
-The included `docker-compose.yml` configures Traefik labels for HTTPS with automatic certificate provisioning. The container runs nginx on port 8080. A GitHub Actions workflow automatically triggers a Portainer webhook to redeploy the stack on every push to `main`.
+The included `docker-compose.yml` configures Traefik labels for HTTPS with automatic certificate provisioning. The container runs nginx on port 8080.
+
+### CI/CD
+
+A GitHub Actions workflow (`.github/workflows/deploy.yml`) automatically triggers a Portainer webhook to redeploy the stack on every push to `main`.
 
 ## Updating the Quest Database
 
