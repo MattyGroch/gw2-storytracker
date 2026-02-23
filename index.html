@@ -576,8 +576,8 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated }) => {
-            const [expanded, setExpanded] = useState(false);
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded }) => {
+            const [expanded, setExpanded] = useState(defaultExpanded || false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
             const info = charInfo?.[charName];
@@ -1323,8 +1323,10 @@
                             </div>
                         ) : data ? (
                             <div className="space-y-6">
+                                {(() => { const isSingleChar = Object.keys(charInfo).length === 1; return (<>
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                                     <h2 className="text-xl sm:text-2xl font-bold font-display">{accountName ? `${accountName}'s Story Journal` : 'Story Journal'}</h2>
+                                    {!isSingleChar && (
                                     <div className="flex items-center gap-3">
                                         <div className="flex bg-stone-800 rounded-lg p-0.5">
                                             <button
@@ -1341,12 +1343,24 @@
                                             </button>
                                         </div>
                                     </div>
+                                    )}
                                 </div>
 
                                 <AccountSummary data={visibleData} />
                                 <HeroRecommendation data={visibleData} charInfo={charInfo} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
+                                {isSingleChar ? (
+                                    <CharacterCard
+                                        charName={Object.keys(charInfo)[0]}
+                                        charInfo={charInfo}
+                                        seasons={data}
+                                        isHidden={false}
+                                        onToggleVisibility={toggleCharVisibility}
+                                        onNavigate={navigateTo}
+                                        defaultExpanded={true}
+                                    />
+                                ) : (<>
                                 {viewMode === 'season' && hiddenChars.size > 0 && (
                                     <div className="flex items-center justify-center gap-2 mb-4 text-sm text-gray-500">
                                         <EyeOff size={14} />
@@ -1394,6 +1408,7 @@
                                             />
                                         ))
                                 )}
+                                </>)}</>); })()}
                             </div>
                         ) : null}
                     </div>
