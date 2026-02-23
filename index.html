@@ -1481,34 +1481,34 @@
                                 <img src="logo.svg" alt="GW2 Story Tracker" className="w-8 h-8 rounded" />
                                 <span className="font-bold text-xl hidden sm:inline font-display">Guild Wars 2 Story Tracker</span>
                             </div>
-                            <div className="flex items-center gap-2 sm:gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
                                 {staleText && !loading && (
                                     <span className="text-xs text-gray-500 hidden sm:inline">Data from {staleText}</span>
                                 )}
                                 <button
                                     onClick={handleRefresh}
                                     disabled={loading}
-                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm disabled:opacity-50 transition-colors"
+                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm disabled:opacity-50 transition-colors p-1"
                                 >
-                                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> <span className="hidden sm:inline">Refresh</span>
+                                    <RefreshCw size={20} className={`sm:w-4 sm:h-4 ${loading ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Refresh</span>
                                 </button>
                                 <button onClick={() => setShowAccessInfo(!showAccessInfo)}
-                                    className="text-gray-500 hover:text-gw2-gold-light transition-colors"
+                                    className="text-gray-500 hover:text-gw2-gold-light transition-colors p-1"
                                     title="About story access">
-                                    <Info size={16} />
+                                    <Info size={20} className="sm:w-4 sm:h-4" />
                                 </button>
                                 {authMethod === 'gw2me' && (
                                     <button onClick={() => setShowGw2meInfo(!showGw2meInfo)}
-                                        className="text-gray-500 hover:text-gw2-gold-light transition-colors relative"
+                                        className="text-gray-500 hover:text-gw2-gold-light transition-colors relative p-1"
                                         title="gw2.me account info">
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor" fillRule="evenodd" clipPath="url(#gw2me-nav)" clipRule="evenodd"><path d="M8 1a3 3 0 0 0-3 3v2.5a.5.5 0 0 1-1 0V4a4 4 0 0 1 7.615-1.715.5.5 0 1 1-.903.43A3 3 0 0 0 8 1Z"/><path d="M11.916 6.223A.5.5 0 0 0 11.5 6H5V4a3 3 0 0 1 5.712-1.285.5.5 0 1 0 .903-.43A4 4 0 0 0 4 4v2.349L2.084 9.223a.5.5 0 0 0 .062.63l5.5 5.5a.5.5 0 0 0 .708 0l5.5-5.5a.5.5 0 0 0 .062-.63l-2-3ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><defs><clipPath id="gw2me-nav"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+                                        <svg className="w-5 h-5 sm:w-4 sm:h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor" fillRule="evenodd" clipPath="url(#gw2me-nav)" clipRule="evenodd"><path d="M8 1a3 3 0 0 0-3 3v2.5a.5.5 0 0 1-1 0V4a4 4 0 0 1 7.615-1.715.5.5 0 1 1-.903.43A3 3 0 0 0 8 1Z"/><path d="M11.916 6.223A.5.5 0 0 0 11.5 6H5V4a3 3 0 0 1 5.712-1.285.5.5 0 1 0 .903-.43A4 4 0 0 0 4 4v2.349L2.084 9.223a.5.5 0 0 0 .062.63l5.5 5.5a.5.5 0 0 0 .708 0l5.5-5.5a.5.5 0 0 0 .062-.63l-2-3ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><defs><clipPath id="gw2me-nav"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
                                     </button>
                                 )}
                                 <button 
                                     onClick={logout}
-                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm transition-colors"
+                                    className="text-gray-400 hover:text-white flex items-center gap-2 text-sm transition-colors p-1"
                                 >
-                                    <LogOut size={16} /> <span className="hidden sm:inline">Sign Out</span>
+                                    <LogOut size={20} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Sign Out</span>
                                 </button>
                             </div>
                         </div>
