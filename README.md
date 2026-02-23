@@ -12,14 +12,16 @@ A single-page web app that tracks your story journal progress across all charact
 - **Account summary** showing total characters, stories completed, and overall completion percentage
 - **By Story / By Character views** to browse progress from either angle, with cross-view navigation (click a character to jump to their card, or click a story to jump to that season)
 - **Single-character mode** — accounts with one character get a streamlined layout without the view toggle
+- **Character sort options** — sort the By Character view by progress, name, level, or profession
 - **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions
-- **Character details** — each character displays their level, race, and profession with GW2 profession icons
+- **Character details** — each character displays their level, race, profession with GW2 profession icons, and a quest progress bar
 - **Expansion ownership detection** — stories you don't own are dimmed and excluded from stats
 - **Thematic story colors** — each story season is tinted with its in-game journal color (jungle green for HoT, purple for PoF, etc.)
 - **Persistent caching** with a staleness banner so repeat visits load instantly without forced refreshes
 - **Two ways to log in:**
-  - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click
+  - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click; multi-account support with an account picker
   - **Manual API key** — paste a key from ArenaNet's API settings
+- **Installable as a PWA** — add to your home screen on mobile or desktop for app-like access
 - **Responsive design** — fully usable on mobile devices with adaptive layouts for every view
 - **Interactive demo** — [try the demo](https://gw2storytracker.com/demo.html) with sample data, no login required
 - **GW2-themed UI** with Cinzel display font, gold/amber palette, and a custom compass-rose logo
