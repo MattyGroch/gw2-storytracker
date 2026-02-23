@@ -583,6 +583,10 @@
             const info = charInfo?.[charName];
 
             useEffect(() => {
+                if (defaultExpanded) setExpanded(true);
+            }, [defaultExpanded]);
+
+            useEffect(() => {
                 if (focusId === charName) {
                     setExpanded(true);
                     setHighlight(true);
@@ -633,6 +637,7 @@
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
+                            {onToggleVisibility && (
                             <button
                                 onClick={() => onToggleVisibility(charName)}
                                 className={`p-1 rounded transition-colors ${isHidden ? 'text-gray-600 hover:text-gray-300' : 'text-gray-400 hover:text-white'}`}
@@ -640,6 +645,7 @@
                             >
                                 {isHidden ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
+                            )}
                             <button
                                 onClick={() => setExpanded(!expanded)}
                                 className="p-1 hover:bg-stone-700 rounded transition-colors"
@@ -1356,7 +1362,6 @@
                                         charInfo={charInfo}
                                         seasons={data}
                                         isHidden={false}
-                                        onToggleVisibility={toggleCharVisibility}
                                         onNavigate={navigateTo}
                                         defaultExpanded={true}
                                     />
