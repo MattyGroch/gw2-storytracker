@@ -336,6 +336,8 @@
             }, [seasons, charName]);
             const completedSeasons = seasonProgress.filter(s => s.progress >= s.total).length;
             const totalSeasons = seasonProgress.length;
+            const totalQuestsCompleted = seasonProgress.reduce((s, sp) => s + sp.progress, 0);
+            const totalQuestsTotal = seasonProgress.reduce((s, sp) => s + sp.total, 0);
             return (
                 <div ref={cardRef} className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${isHidden ? 'opacity-50' : ''}`}>
                     <div className="p-3 sm:p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
@@ -354,6 +356,15 @@
                                 <p className="text-xs text-gray-400">
                                     <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
                                 </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="w-24 sm:w-32">
+                                        <ProgressBar current={totalQuestsCompleted} total={totalQuestsTotal}
+                                            colorClass={totalQuestsCompleted >= totalQuestsTotal ? "bg-green-500" : "bg-gw2-gold"} />
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                        {totalQuestsCompleted} / {totalQuestsTotal} Quests ({Math.round((totalQuestsCompleted / totalQuestsTotal) * 100 || 0)}%)
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
@@ -593,7 +604,7 @@
                                 Object.keys(DEMO_CHAR_INFO)
                                     .sort((a, b) => {
                                         if (charSort === 'name') return a.localeCompare(b);
-                                        if (charSort === 'level') return (DEMO_CHAR_INFO[b]?.level || 0) - (DEMO_CHAR_INFO[a]?.level || 0);
+                                        if (charSort === 'level') { const ld = (DEMO_CHAR_INFO[b]?.level || 0) - (DEMO_CHAR_INFO[a]?.level || 0); if (ld !== 0) return ld; const prog = (name) => DEMO_DATA.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0); return prog(b) - prog(a); }
                                         if (charSort === 'profession') return (DEMO_CHAR_INFO[a]?.profession || '').localeCompare(DEMO_CHAR_INFO[b]?.profession || '') || a.localeCompare(b);
                                         const prog = (name) => DEMO_DATA.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0);
                                         return prog(b) - prog(a);
