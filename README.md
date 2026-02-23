@@ -10,7 +10,8 @@ A single-page web app that tracks your story journal progress across all charact
 - **Race-aware progress** for the Personal Story, filtering out story arcs that don't apply to each character's race
 - **"Continue Your Journey" recommendation** highlighting the character and story closest to completion
 - **Account summary** showing total characters, stories completed, and overall completion percentage
-- **By Story / By Character views** to browse progress from either angle
+- **By Story / By Character views** to browse progress from either angle, with cross-view navigation (click a character to jump to their card, or click a story to jump to that season)
+- **Single-character mode** — accounts with one character get a streamlined layout without the view toggle
 - **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions
 - **Character details** — each character displays their level, race, and profession with GW2 profession icons
 - **Expansion ownership detection** — stories you don't own are dimmed and excluded from stats
@@ -65,7 +66,7 @@ The app can be deployed as a Docker container behind a Traefik reverse proxy:
 docker compose up -d
 ```
 
-The included `docker-compose.yml` configures Traefik labels for HTTPS with automatic certificate provisioning. The container runs nginx on port 8080.
+The included `docker-compose.yml` configures Traefik labels for HTTPS with automatic certificate provisioning. The container runs nginx on port 8080. A GitHub Actions workflow automatically triggers a Portainer webhook to redeploy the stack on every push to `main`.
 
 ## Updating the Quest Database
 
