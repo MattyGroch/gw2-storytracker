@@ -54,7 +54,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
         const IconBase = ({ children, size = 24, className = "", ...props }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
@@ -109,7 +109,7 @@
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, unit = "Quests", isRecommended, charInfo }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Quests", isRecommended, charInfo, onNavigate }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
             const info = charInfo?.[charName];
@@ -122,7 +122,9 @@
                         }
                         <div className="flex flex-col min-w-0">
                             <span className={`text-sm font-medium ${isRecommended ? 'text-amber-200' : 'text-gray-300'} truncate`}>
-                                {charName}
+                                {onNavigate ? (
+                                    <button onClick={() => onNavigate('character', charName)} className="hover:underline hover:text-gw2-gold-light transition-colors text-left">{charName}</button>
+                                ) : charName}
                                 {info && <span className="ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
                                 {isRecommended && <span className="ml-2 text-xs bg-gw2-gold-dark text-amber-100 px-1.5 py-0.5 rounded hidden sm:inline">Recommended</span>}
                             </span>
@@ -136,8 +138,23 @@
             );
         };
 
-        const SeasonCard = ({ season, characters, recommendedChar, charInfo }) => {
+        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated }) => {
             const [expanded, setExpanded] = useState(false);
+            const [highlight, setHighlight] = useState(false);
+            const cardRef = useRef(null);
+
+            useEffect(() => {
+                if (focusId === season.id) {
+                    setExpanded(true);
+                    setHighlight(true);
+                    setTimeout(() => {
+                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                    setTimeout(() => setHighlight(false), 1500);
+                    onNavigated?.();
+                }
+            }, [focusId, season.id, onNavigated]);
+
             const sortedChars = useMemo(() => {
                 return Object.entries(characters)
                     .map(([name, data]) => ({ name, ...data }))
@@ -155,7 +172,8 @@
 
             return (
                 <div
-                    className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
+                    ref={cardRef}
+                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
                     style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
                 >
                     <div
@@ -201,6 +219,7 @@
                                         <CharacterRow
                                             key={char.name} charName={char.name} progress={char.progress} total={char.total}
                                             unit={season.unit} isRecommended={char.name === recommendedChar?.name} charInfo={charInfo}
+                                            onNavigate={onNavigate}
                                         />
                                     ))}
                                 </div>
@@ -285,9 +304,24 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility }) => {
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated }) => {
             const [expanded, setExpanded] = useState(false);
+            const [highlight, setHighlight] = useState(false);
+            const cardRef = useRef(null);
             const info = charInfo?.[charName];
+
+            useEffect(() => {
+                if (focusId === charName) {
+                    setExpanded(true);
+                    setHighlight(true);
+                    setTimeout(() => {
+                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                    setTimeout(() => setHighlight(false), 1500);
+                    onNavigated?.();
+                }
+            }, [focusId, charName, onNavigated]);
+
             const seasonProgress = useMemo(() => {
                 return seasons.filter(s => s.owned !== false).map(season => {
                     const cd = season.charData[charName];
@@ -297,7 +331,7 @@
             const completedSeasons = seasonProgress.filter(s => s.progress >= s.total).length;
             const totalSeasons = seasonProgress.length;
             return (
-                <div className={`card-bg rounded-lg border border-stone-800 overflow-hidden mb-4 shadow-lg transition-opacity ${isHidden ? 'opacity-50' : ''}`}>
+                <div ref={cardRef} className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${isHidden ? 'opacity-50' : ''}`}>
                     <div className="p-3 sm:p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             {info?.profession && PROFESSION_ICONS[info.profession]
@@ -338,7 +372,11 @@
                                         <div className="flex items-center gap-3 flex-1">
                                             <BookOpen size={16} className={isComplete ? "text-green-500" : hasProgress ? "text-gw2-gold-light" : "text-gray-600"} />
                                             <div className="flex flex-col">
-                                                <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
+                                                {onNavigate ? (
+                                    <button onClick={() => onNavigate('season', sp.id)} className={`text-sm font-medium text-left hover:underline hover:text-gw2-gold-light transition-colors ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</button>
+                                ) : (
+                                    <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
+                                )}
                                                 <span className="text-xs text-gray-500">{sp.progress} / {sp.total} {sp.unit} ({pct}%)</span>
                                             </div>
                                         </div>
@@ -413,7 +451,13 @@
 
         const DemoApp = () => {
             const [viewMode, setViewMode] = useState('season');
+            const [navigateTarget, setNavigateTarget] = useState(null);
             const [hiddenChars, setHiddenChars] = useState(new Set());
+
+            const navigateTo = useCallback((type, id) => {
+                setViewMode(type === 'character' ? 'character' : 'season');
+                setNavigateTarget({ type, id });
+            }, []);
 
             const toggleCharVisibility = (name) => {
                 setHiddenChars(prev => {
@@ -508,7 +552,10 @@
                             {viewMode === 'season' ? (
                                 visibleData.map(season => (
                                     <SeasonCard key={season.id} season={season} characters={season.charData}
-                                        recommendedChar={season.recommendation} charInfo={DEMO_CHAR_INFO} />
+                                        recommendedChar={season.recommendation} charInfo={DEMO_CHAR_INFO}
+                                        onNavigate={navigateTo}
+                                        focusId={navigateTarget?.type === 'season' ? navigateTarget.id : null}
+                                        onNavigated={() => setNavigateTarget(null)} />
                                 ))
                             ) : (
                                 Object.keys(DEMO_CHAR_INFO)
@@ -518,7 +565,10 @@
                                     })
                                     .map(name => (
                                         <CharacterCard key={name} charName={name} charInfo={DEMO_CHAR_INFO} seasons={DEMO_DATA}
-                                            isHidden={hiddenChars.has(name)} onToggleVisibility={toggleCharVisibility} />
+                                            isHidden={hiddenChars.has(name)} onToggleVisibility={toggleCharVisibility}
+                                            onNavigate={navigateTo}
+                                            focusId={navigateTarget?.type === 'character' ? navigateTarget.id : null}
+                                            onNavigated={() => setNavigateTarget(null)} />
                                     ))
                             )}
                         </div>
