@@ -998,6 +998,7 @@
                                 }
                             });
 
+
                             if (useQuestLevel) {
                                 const totalQuests = myStory
                                     ? MY_STORY_QUESTS_PER_PATH
@@ -1575,8 +1576,11 @@
                                 <p className="text-sm text-gray-300 mb-3">
                                     Stories are shown or hidden based on the expansions listed on your Guild Wars 2 account. Stories you don't own appear locked and are excluded from progress calculations.
                                 </p>
-                                <p className="text-sm text-gray-300 mb-4">
+                                <p className="text-sm text-gray-300 mb-3">
                                     The GW2 API does not currently report ownership of <span className="text-gray-100 font-medium">Living World Seasons</span>, <span className="text-gray-100 font-medium">The Icebrood Saga</span>, or <span className="text-gray-100 font-medium">Visions of Eternity</span>. Use the <Settings size={12} className="inline text-gw2-gold" /> gear icon in the Story Completion Overview to indicate which of these you own.
+                                </p>
+                                <p className="text-sm text-gray-300 mb-4">
+                                    Quest progress reflects all quests the API has ever recorded as completed, including from restarted stories or quests completed in another player's story instance. Progress may not always match your in-game journal and will correct itself as you replay through those quests.
                                 </p>
                                 <button onClick={() => setShowAccessInfo(false)}
                                     className="w-full px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
