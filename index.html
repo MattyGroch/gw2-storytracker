@@ -503,42 +503,73 @@
         };
 
         const AccountSummary = ({ data, onNavigate }) => {
+            const [collapsed, setCollapsed] = useState(() => {
+                const stored = localStorage.getItem('gw2_overview_collapsed');
+                return stored !== null ? stored === 'true' : true;
+            });
+            const toggle = () => {
+                setCollapsed(prev => {
+                    localStorage.setItem('gw2_overview_collapsed', String(!prev));
+                    return !prev;
+                });
+            };
             return (
                 <div className="card-bg rounded-lg border border-stone-800 p-3 sm:p-4 mb-6">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5 text-center">Story Completion Overview</p>
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
-                        {data.filter(s => s.owned !== false).map(season => {
-                            const chars = Object.values(season.charData);
-                            const completed = chars.some(c => c.progress >= c.total);
-                            const inProgress = !completed && chars.some(c => c.progress > 0);
-                            const color = STORY_COLORS[season.name];
-                            const label = STORY_SHORT_NAMES[season.name] || season.name;
-                            const pillClass = completed
-                                ? 'border-stone-700 text-gray-200'
-                                : inProgress
-                                    ? 'border-stone-700/60 text-gray-300 opacity-75'
-                                    : 'border-stone-800 text-gray-500 opacity-50';
-                            const borderColor = completed ? color : inProgress ? color + 'aa' : color + '60';
-                            return (
-                                <button
-                                    key={season.id}
-                                    title={season.name}
-                                    onClick={() => onNavigate && onNavigate('season', season.id)}
-                                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border cursor-pointer hover:border-gw2-gold-dark hover:opacity-100 transition-all ${pillClass}`}
-                                    style={color ? { borderLeft: `3px solid ${borderColor}` } : undefined}
-                                >
-                                    {completed && <CheckCircle2 size={12} className="text-green-500 shrink-0" />}
-                                    {inProgress && <Loader2 size={12} className="text-gw2-gold shrink-0" />}
-                                    {label}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <button onClick={toggle} className="w-full flex items-center gap-2 cursor-pointer group">
+                        <CheckCircle2 className="text-gw2-gold" size={18} />
+                        <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Story Completion Overview</span>
+                        {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
+                    </button>
+                    {!collapsed && (
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center mt-2.5">
+                            {data.map(season => {
+                                const isOwned = season.owned !== false;
+                                const chars = Object.values(season.charData);
+                                const completed = isOwned && chars.some(c => c.progress >= c.total);
+                                const inProgress = isOwned && !completed && chars.some(c => c.progress > 0);
+                                const color = STORY_COLORS[season.name];
+                                const label = STORY_SHORT_NAMES[season.name] || season.name;
+                                const pillClass = !isOwned
+                                    ? 'border-stone-800 text-gray-600 opacity-40'
+                                    : completed
+                                        ? 'border-stone-700 text-gray-200'
+                                        : inProgress
+                                            ? 'border-stone-700 text-gray-200 opacity-85'
+                                            : 'border-stone-800 text-gray-400 opacity-70';
+                                const borderColor = !isOwned ? (color ? color + '30' : undefined) : completed ? color : inProgress ? color : color + '60';
+                                return (
+                                    <button
+                                        key={season.id}
+                                        title={isOwned ? season.name : `${season.name} (not owned)`}
+                                        onClick={() => isOwned && onNavigate && onNavigate('season', season.id)}
+                                        className={`inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded border transition-all ${isOwned ? 'cursor-pointer hover:border-gw2-gold-dark hover:opacity-100' : 'cursor-default'} ${pillClass}`}
+                                        style={color ? { borderLeft: `3px solid ${borderColor}` } : undefined}
+                                    >
+                                        {!isOwned && <Lock size={12} className="text-gray-600 shrink-0" />}
+                                        {completed && <CheckCircle2 size={14} className="text-green-500 shrink-0" />}
+                                        {inProgress && <Loader2 size={14} className="text-gw2-gold shrink-0" />}
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             );
         };
 
         const HeroRecommendation = ({ data, charInfo }) => {
+            const [collapsed, setCollapsed] = useState(() => {
+                const stored = localStorage.getItem('gw2_hero_collapsed');
+                return stored !== null ? stored === 'true' : false;
+            });
+            const toggle = () => {
+                setCollapsed(prev => {
+                    localStorage.setItem('gw2_hero_collapsed', String(!prev));
+                    return !prev;
+                });
+            };
+
             const best = useMemo(() => {
                 let top = null;
                 let topPct = -1;
@@ -570,24 +601,29 @@
 
             return (
                 <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-4 sm:p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
-                    <div className="flex items-center gap-2 mb-3">
+                    <button onClick={toggle} className="w-full flex items-center gap-2 cursor-pointer group">
                         <PlayCircle className="text-gw2-gold" size={18} />
                         <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Continue Your Journey</span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h3 className="text-lg sm:text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
-                            <p className="text-sm text-gray-400 mt-1">
-                                {best.charName}
-                                {info && <span className="text-gray-500"> · Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
-                                <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
-                            </p>
-                        </div>
-                        <p className="text-3xl font-bold text-gw2-gold-light font-display mt-3 sm:mt-0">{best.pct}%</p>
-                    </div>
-                    <div className="mt-4">
-                        <ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" />
-                    </div>
+                        {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
+                    </button>
+                    {!collapsed && (
+                        <>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3">
+                                <div>
+                                    <h3 className="text-lg sm:text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        {best.charName}
+                                        {info && <span className="text-gray-500"> · Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
+                                        <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
+                                    </p>
+                                </div>
+                                <p className="text-3xl font-bold text-gw2-gold-light font-display mt-3 sm:mt-0">{best.pct}%</p>
+                            </div>
+                            <div className="mt-4">
+                                <ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" />
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -743,6 +779,7 @@
             const [charSort, setCharSort] = useState('progress');
             const [navigateTarget, setNavigateTarget] = useState(null);
             const [showGw2meInfo, setShowGw2meInfo] = useState(false);
+            const [showAccessInfo, setShowAccessInfo] = useState(false);
             const [accountName, setAccountName] = useState('');
             const [hiddenChars, setHiddenChars] = useState(() => {
                 const stored = localStorage.getItem('gw2_hidden_chars');
@@ -1360,11 +1397,16 @@
                                 >
                                     <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> <span className="hidden sm:inline">Refresh</span>
                                 </button>
+                                <button onClick={() => setShowAccessInfo(!showAccessInfo)}
+                                    className="text-gray-500 hover:text-gw2-gold-light transition-colors"
+                                    title="About story access">
+                                    <Info size={16} />
+                                </button>
                                 {authMethod === 'gw2me' && (
                                     <button onClick={() => setShowGw2meInfo(!showGw2meInfo)}
                                         className="text-gray-500 hover:text-gw2-gold-light transition-colors relative"
                                         title="gw2.me account info">
-                                        <Info size={16} />
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g fill="currentColor" fillRule="evenodd" clipPath="url(#gw2me-nav)" clipRule="evenodd"><path d="M8 1a3 3 0 0 0-3 3v2.5a.5.5 0 0 1-1 0V4a4 4 0 0 1 7.615-1.715.5.5 0 1 1-.903.43A3 3 0 0 0 8 1Z"/><path d="M11.916 6.223A.5.5 0 0 0 11.5 6H5V4a3 3 0 0 1 5.712-1.285.5.5 0 1 0 .903-.43A4 4 0 0 0 4 4v2.349L2.084 9.223a.5.5 0 0 0 .062.63l5.5 5.5a.5.5 0 0 0 .708 0l5.5-5.5a.5.5 0 0 0 .062-.63l-2-3ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></g><defs><clipPath id="gw2me-nav"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
                                     </button>
                                 )}
                                 <button 
@@ -1424,6 +1466,25 @@
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showAccessInfo && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowAccessInfo(false)}>
+                            <div className="absolute inset-0 bg-black/60"></div>
+                            <div className="relative card-bg border border-stone-700 rounded-xl shadow-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-lg font-bold font-display text-gw2-gold mb-3">Story Access</h3>
+                                <p className="text-sm text-gray-300 mb-3">
+                                    Stories are shown or hidden based on the expansions listed on your Guild Wars 2 account. Stories you don't own appear locked and are excluded from progress calculations.
+                                </p>
+                                <p className="text-sm text-gray-300 mb-4">
+                                    The GW2 API does not currently report ownership of <span className="text-gray-100 font-medium">Living World Seasons</span> or <span className="text-gray-100 font-medium">Visions of Eternity</span>. These stories will always appear as available regardless of actual ownership.
+                                </p>
+                                <button onClick={() => setShowAccessInfo(false)}
+                                    className="w-full px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
+                                    Close
+                                </button>
                             </div>
                         </div>
                     )}

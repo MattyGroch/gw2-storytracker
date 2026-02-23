@@ -249,42 +249,72 @@
         };
 
         const AccountSummary = ({ data, onNavigate }) => {
+            const [collapsed, setCollapsed] = useState(() => {
+                const stored = localStorage.getItem('gw2_overview_collapsed');
+                return stored !== null ? stored === 'true' : true;
+            });
+            const toggle = () => {
+                setCollapsed(prev => {
+                    localStorage.setItem('gw2_overview_collapsed', String(!prev));
+                    return !prev;
+                });
+            };
             return (
                 <div className="card-bg rounded-lg border border-stone-800 p-3 sm:p-4 mb-6">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2.5 text-center">Story Completion Overview</p>
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
-                        {data.filter(s => s.owned !== false).map(season => {
-                            const chars = Object.values(season.charData);
-                            const completed = chars.some(c => c.progress >= c.total);
-                            const inProgress = !completed && chars.some(c => c.progress > 0);
-                            const color = STORY_COLORS[season.name];
-                            const label = STORY_SHORT_NAMES[season.name] || season.name;
-                            const pillClass = completed
-                                ? 'border-stone-700 text-gray-200'
-                                : inProgress
-                                    ? 'border-stone-700/60 text-gray-300 opacity-75'
-                                    : 'border-stone-800 text-gray-500 opacity-50';
-                            const borderColor = completed ? color : inProgress ? color + 'aa' : color + '60';
-                            return (
-                                <button
-                                    key={season.id}
-                                    title={season.name}
-                                    onClick={() => onNavigate && onNavigate('season', season.id)}
-                                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded border cursor-pointer hover:border-gw2-gold-dark hover:opacity-100 transition-all ${pillClass}`}
-                                    style={color ? { borderLeft: `3px solid ${borderColor}` } : undefined}
-                                >
-                                    {completed && <CheckCircle2 size={12} className="text-green-500 shrink-0" />}
-                                    {inProgress && <Loader2 size={12} className="text-gw2-gold shrink-0" />}
-                                    {label}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <button onClick={toggle} className="w-full flex items-center justify-center gap-2 cursor-pointer group">
+                        <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold text-center">Story Completion Overview</span>
+                        {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
+                    </button>
+                    {!collapsed && (
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center mt-2.5">
+                            {data.map(season => {
+                                const isOwned = season.owned !== false;
+                                const chars = Object.values(season.charData);
+                                const completed = isOwned && chars.some(c => c.progress >= c.total);
+                                const inProgress = isOwned && !completed && chars.some(c => c.progress > 0);
+                                const color = STORY_COLORS[season.name];
+                                const label = STORY_SHORT_NAMES[season.name] || season.name;
+                                const pillClass = !isOwned
+                                    ? 'border-stone-800 text-gray-600 opacity-40'
+                                    : completed
+                                        ? 'border-stone-700 text-gray-200'
+                                        : inProgress
+                                            ? 'border-stone-700 text-gray-200 opacity-85'
+                                            : 'border-stone-800 text-gray-400 opacity-70';
+                                const borderColor = !isOwned ? (color ? color + '30' : undefined) : completed ? color : inProgress ? color : color + '60';
+                                return (
+                                    <button
+                                        key={season.id}
+                                        title={isOwned ? season.name : `${season.name} (not owned)`}
+                                        onClick={() => isOwned && onNavigate && onNavigate('season', season.id)}
+                                        className={`inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded border transition-all ${isOwned ? 'cursor-pointer hover:border-gw2-gold-dark hover:opacity-100' : 'cursor-default'} ${pillClass}`}
+                                        style={color ? { borderLeft: `3px solid ${borderColor}` } : undefined}
+                                    >
+                                        {!isOwned && <Lock size={12} className="text-gray-600 shrink-0" />}
+                                        {completed && <CheckCircle2 size={14} className="text-green-500 shrink-0" />}
+                                        {inProgress && <Loader2 size={14} className="text-gw2-gold shrink-0" />}
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             );
         };
 
         const HeroRecommendation = ({ data, charInfo }) => {
+            const [collapsed, setCollapsed] = useState(() => {
+                const stored = localStorage.getItem('gw2_hero_collapsed');
+                return stored !== null ? stored === 'true' : false;
+            });
+            const toggle = () => {
+                setCollapsed(prev => {
+                    localStorage.setItem('gw2_hero_collapsed', String(!prev));
+                    return !prev;
+                });
+            };
+
             const best = useMemo(() => {
                 let top = null, topPct = -1;
                 data.filter(s => s.owned !== false).forEach(season => {
@@ -304,22 +334,27 @@
             const info = charInfo?.[best.charName];
             return (
                 <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-4 sm:p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
-                    <div className="flex items-center gap-2 mb-3">
+                    <button onClick={toggle} className="w-full flex items-center gap-2 cursor-pointer group">
                         <PlayCircle className="text-gw2-gold" size={18} />
                         <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Continue Your Journey</span>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h3 className="text-lg sm:text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
-                            <p className="text-sm text-gray-400 mt-1">
-                                {best.charName}
-                                {info && <span className="text-gray-500"> · Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
-                                <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
-                            </p>
-                        </div>
-                        <p className="text-3xl font-bold text-gw2-gold-light font-display mt-3 sm:mt-0">{best.pct}%</p>
-                    </div>
-                    <div className="mt-4"><ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" /></div>
+                        {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
+                    </button>
+                    {!collapsed && (
+                        <>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3">
+                                <div>
+                                    <h3 className="text-lg sm:text-xl font-bold text-gray-100 font-display">{best.seasonName}</h3>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        {best.charName}
+                                        {info && <span className="text-gray-500"> · Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
+                                        <span className="text-gray-600"> — {best.progress} / {best.total} {best.unit}</span>
+                                    </p>
+                                </div>
+                                <p className="text-3xl font-bold text-gw2-gold-light font-display mt-3 sm:mt-0">{best.pct}%</p>
+                            </div>
+                            <div className="mt-4"><ProgressBar current={best.progress} total={best.total} colorClass="bg-gw2-gold" /></div>
+                        </>
+                    )}
                 </div>
             );
         };
