@@ -1,0 +1,29 @@
+{
+  "name": "GW2 Story Tracker",
+  "short_name": "GW2 Stories",
+  "description": "Track your Guild Wars 2 story journal progress across all characters",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#1c1917",
+  "theme_color": "#c8a84e",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

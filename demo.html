@@ -7,6 +7,7 @@
     <meta name="description" content="Preview the GW2 Story Tracker with sample data. No API key required.">
     <meta name="theme-color" content="#c8a84e">
     <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="manifest" href="manifest.json">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -125,9 +126,10 @@
                                 {onNavigate ? (
                                     <button onClick={() => onNavigate('character', charName)} className="hover:underline hover:text-gw2-gold-light transition-colors text-left">{charName}</button>
                                 ) : charName}
-                                {info && <span className="ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
+                                {info && <span className="hidden sm:inline ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} {info.race} {info.profession}</span>}
                                 {isRecommended && <span className="ml-2 text-xs bg-gw2-gold-dark text-amber-100 px-1.5 py-0.5 rounded hidden sm:inline">Recommended</span>}
                             </span>
+                            {info && <span className="text-xs text-gray-500 sm:hidden">Lv.{info.level} {info.race} {info.profession}</span>}
                             <span className="text-xs text-gray-500">{progress} / {total} {unit} ({percentage}%)</span>
                         </div>
                     </div>
@@ -148,7 +150,7 @@
                     setExpanded(true);
                     setHighlight(true);
                     setTimeout(() => {
-                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }, 100);
                     setTimeout(() => setHighlight(false), 1500);
                     onNavigated?.();
@@ -173,7 +175,7 @@
             return (
                 <div
                     ref={cardRef}
-                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
+                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
                     style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
                 >
                     <div
@@ -319,7 +321,7 @@
                     setExpanded(true);
                     setHighlight(true);
                     setTimeout(() => {
-                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }, 100);
                     setTimeout(() => setHighlight(false), 1500);
                     onNavigated?.();
@@ -335,7 +337,7 @@
             const completedSeasons = seasonProgress.filter(s => s.progress >= s.total).length;
             const totalSeasons = seasonProgress.length;
             return (
-                <div ref={cardRef} className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${isHidden ? 'opacity-50' : ''}`}>
+                <div ref={cardRef} className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${isHidden ? 'opacity-50' : ''}`}>
                     <div className="p-3 sm:p-4 flex items-center justify-between bg-gradient-to-r from-stone-800 to-transparent">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             {info?.profession && PROFESSION_ICONS[info.profession]
@@ -345,9 +347,10 @@
                             <div className="min-w-0">
                                 <h3 className="text-base sm:text-lg font-bold text-gray-100 font-display truncate">
                                     {charName}
-                                    {info && <span className="ml-2 text-sm text-gray-400 font-normal font-sans">Lv.{info.level} <span className="hidden sm:inline">{info.race} </span>{info.profession}</span>}
+                                    {info && <span className="hidden sm:inline ml-2 text-sm text-gray-400 font-normal font-sans">Lv.{info.level} {info.race} {info.profession}</span>}
                                     {isHidden && <span className="ml-2 text-xs text-gray-500 font-normal font-sans italic hidden sm:inline">Hidden from Story view</span>}
                                 </h3>
+                                {info && <p className="text-xs text-gray-400 sm:hidden">Lv.{info.level} {info.race} {info.profession}</p>}
                                 <p className="text-xs text-gray-400">
                                     <span className="text-green-400">{completedSeasons}</span> / {totalSeasons} Stories Completed
                                 </p>
@@ -457,6 +460,7 @@
 
         const DemoApp = () => {
             const [viewMode, setViewMode] = useState('season');
+            const [charSort, setCharSort] = useState('progress');
             const [navigateTarget, setNavigateTarget] = useState(null);
             const [hiddenChars, setHiddenChars] = useState(new Set());
 
@@ -530,7 +534,7 @@
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                                 <h2 className="text-xl sm:text-2xl font-bold font-display">Valeria's Story Journal</h2>
                                 {!isSingleChar && (
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 sm:gap-3">
                                     <div className="flex bg-stone-800 rounded-lg p-0.5">
                                         <button onClick={() => setViewMode('season')}
                                             className={`px-3 py-1 text-sm rounded-md transition-colors ${viewMode === 'season' ? 'bg-gw2-gold-dark text-white' : 'text-gray-400 hover:text-white'}`}>
@@ -541,6 +545,15 @@
                                             By Character
                                         </button>
                                     </div>
+                                    {viewMode === 'character' && (
+                                        <select value={charSort} onChange={e => setCharSort(e.target.value)}
+                                            className="bg-stone-800 text-sm text-gray-300 rounded-md px-2 py-1 border border-stone-700 focus:border-gw2-gold-dark focus:outline-none">
+                                            <option value="progress">Sort: Progress</option>
+                                            <option value="name">Sort: Name</option>
+                                            <option value="level">Sort: Level</option>
+                                            <option value="profession">Sort: Profession</option>
+                                        </select>
+                                    )}
                                 </div>
                                 )}
                             </div>
@@ -579,6 +592,9 @@
                             ) : (
                                 Object.keys(DEMO_CHAR_INFO)
                                     .sort((a, b) => {
+                                        if (charSort === 'name') return a.localeCompare(b);
+                                        if (charSort === 'level') return (DEMO_CHAR_INFO[b]?.level || 0) - (DEMO_CHAR_INFO[a]?.level || 0);
+                                        if (charSort === 'profession') return (DEMO_CHAR_INFO[a]?.profession || '').localeCompare(DEMO_CHAR_INFO[b]?.profession || '') || a.localeCompare(b);
                                         const prog = (name) => DEMO_DATA.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0);
                                         return prog(b) - prog(a);
                                     })
