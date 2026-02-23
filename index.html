@@ -198,6 +198,12 @@
             </IconBase>
         );
 
+        const Settings = (props) => (
+            <IconBase {...props}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+            </IconBase>
+        );
         const Lock = (props) => (
             <IconBase {...props}>
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -234,6 +240,14 @@
             'Secrets of the Obscure': 'SecretsOfTheObscure',
             'Janthir Wilds': 'JanthirWilds',
         };
+
+        const MANUAL_OWNERSHIP_STORIES = [
+            'Living World Season 2',
+            'Living World Season 3',
+            'Living World Season 4',
+            'The Icebrood Saga',
+            'Visions of Eternity',
+        ];
 
         const PROFESSION_ICONS = {
             Guardian:     'https://render.guildwars2.com/file/28D46E95F70834CE45640375FCDB0DEAF198325B/716635.png',
@@ -515,24 +529,74 @@
             'Visions of Eternity': 'VoE',
         };
 
-        const AccountSummary = ({ data, onNavigate }) => {
+        const AccountSummary = ({ data, onNavigate, ownedStories, onToggleOwnership }) => {
             const [collapsed, setCollapsed] = useState(() => {
                 const stored = localStorage.getItem('gw2_overview_collapsed');
                 return stored !== null ? stored === 'true' : true;
             });
+            const [showSettings, setShowSettings] = useState(false);
+            const settingsRef = useRef(null);
             const toggle = () => {
                 setCollapsed(prev => {
                     localStorage.setItem('gw2_overview_collapsed', String(!prev));
                     return !prev;
                 });
             };
+
+            useEffect(() => {
+                if (!showSettings) return;
+                const handler = (e) => {
+                    if (settingsRef.current && !settingsRef.current.contains(e.target)) setShowSettings(false);
+                };
+                document.addEventListener('mousedown', handler);
+                return () => document.removeEventListener('mousedown', handler);
+            }, [showSettings]);
+
             return (
                 <div className="card-bg rounded-lg border border-stone-800 p-4 sm:p-6 mb-6">
-                    <button onClick={toggle} className="w-full flex items-center gap-2 cursor-pointer group">
-                        <CheckCircle2 className="text-gw2-gold" size={18} />
-                        <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Story Completion Overview</span>
-                        {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
-                    </button>
+                    <div className="flex items-center">
+                        <button onClick={toggle} className="flex-1 flex items-center gap-2 cursor-pointer group">
+                            <CheckCircle2 className="text-gw2-gold" size={18} />
+                            <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Story Completion Overview</span>
+                            {collapsed ? <ChevronDown size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" /> : <ChevronUp size={14} className="text-gray-500 group-hover:text-gw2-gold transition-colors" />}
+                        </button>
+                        <div className="relative" ref={settingsRef}>
+                            <button
+                                onClick={() => setShowSettings(p => !p)}
+                                className={`p-1 rounded transition-colors ${showSettings ? 'text-gw2-gold' : 'text-gray-500 hover:text-gw2-gold-light'}`}
+                                title="Story ownership settings"
+                            >
+                                <Settings size={14} />
+                            </button>
+                            {showSettings && (
+                                <div className="absolute right-0 top-full mt-2 z-30 w-64 card-bg border border-stone-700 rounded-lg shadow-xl p-3">
+                                    <p className="text-xs text-gray-400 mb-2">The GW2 API can't detect ownership of these stories. Toggle on any you own.</p>
+                                    <div className="space-y-1.5">
+                                        {MANUAL_OWNERSHIP_STORIES.map(name => {
+                                            const color = STORY_COLORS[name];
+                                            const shortName = STORY_SHORT_NAMES[name] || name;
+                                            const isOn = ownedStories[name] || false;
+                                            return (
+                                                <button
+                                                    key={name}
+                                                    onClick={() => onToggleOwnership(name)}
+                                                    className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }}></span>
+                                                        <span className={`text-sm ${isOn ? 'text-gray-200' : 'text-gray-500'}`}>{name}</span>
+                                                    </div>
+                                                    <div className={`w-8 h-5 rounded-full relative transition-colors ${isOn ? 'bg-gw2-gold' : 'bg-stone-700'}`}>
+                                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isOn ? 'left-[calc(100%-1.125rem)]' : 'left-0.5'}`}></div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     {!collapsed && (
                         <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center mt-2.5">
                             {data.map(season => {
@@ -804,6 +868,20 @@
                     const next = new Set(prev);
                     next.has(name) ? next.delete(name) : next.add(name);
                     localStorage.setItem('gw2_hidden_chars', JSON.stringify([...next]));
+                    return next;
+                });
+            }, []);
+            const [ownedStories, setOwnedStories] = useState(() => {
+                try {
+                    const stored = localStorage.getItem('gw2_owned_stories');
+                    if (stored) return JSON.parse(stored);
+                } catch (e) {}
+                return Object.fromEntries(MANUAL_OWNERSHIP_STORIES.map(s => [s, false]));
+            });
+            const toggleStoryOwnership = useCallback((name) => {
+                setOwnedStories(prev => {
+                    const next = { ...prev, [name]: !prev[name] };
+                    localStorage.setItem('gw2_owned_stories', JSON.stringify(next));
                     return next;
                 });
             }, []);
@@ -1234,14 +1312,17 @@
             }, [gw2meToken, fetchData]);
 
             const visibleData = useMemo(() => {
-                if (!data || hiddenChars.size === 0) return data;
+                if (!data) return data;
                 return data.map(season => {
+                    const isManual = MANUAL_OWNERSHIP_STORIES.includes(season.name);
+                    const owned = isManual ? (ownedStories[season.name] || false) : season.owned;
+
                     const filteredCharData = {};
                     Object.entries(season.charData).forEach(([name, d]) => {
                         if (!hiddenChars.has(name)) filteredCharData[name] = d;
                     });
                     let recommendation = null;
-                    if (season.owned !== false) {
+                    if (owned !== false) {
                         let topPct = -1;
                         Object.entries(filteredCharData).forEach(([name, d]) => {
                             if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
@@ -1253,9 +1334,9 @@
                             }
                         });
                     }
-                    return { ...season, charData: filteredCharData, recommendation };
+                    return { ...season, owned, charData: filteredCharData, recommendation, requiredExpansion: !owned ? season.name : null };
                 });
-            }, [data, hiddenChars]);
+            }, [data, hiddenChars, ownedStories]);
 
             if (oauthPending) {
                 return (
@@ -1493,7 +1574,7 @@
                                     Stories are shown or hidden based on the expansions listed on your Guild Wars 2 account. Stories you don't own appear locked and are excluded from progress calculations.
                                 </p>
                                 <p className="text-sm text-gray-300 mb-4">
-                                    The GW2 API does not currently report ownership of <span className="text-gray-100 font-medium">Living World Seasons</span> or <span className="text-gray-100 font-medium">Visions of Eternity</span>. These stories will always appear as available regardless of actual ownership.
+                                    The GW2 API does not currently report ownership of <span className="text-gray-100 font-medium">Living World Seasons</span>, <span className="text-gray-100 font-medium">The Icebrood Saga</span>, or <span className="text-gray-100 font-medium">Visions of Eternity</span>. Use the <Settings size={12} className="inline text-gw2-gold" /> gear icon in the Story Completion Overview to indicate which of these you own.
                                 </p>
                                 <button onClick={() => setShowAccessInfo(false)}
                                     className="w-full px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
@@ -1578,7 +1659,7 @@
                                     )}
                                 </div>
 
-                                <AccountSummary data={visibleData} onNavigate={navigateTo} />
+                                <AccountSummary data={visibleData} onNavigate={navigateTo} ownedStories={ownedStories} onToggleOwnership={toggleStoryOwnership} />
                                 <HeroRecommendation data={visibleData} charInfo={charInfo} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
@@ -1586,7 +1667,7 @@
                                     <CharacterCard
                                         charName={Object.keys(charInfo)[0]}
                                         charInfo={charInfo}
-                                        seasons={data}
+                                        seasons={visibleData}
                                         isHidden={false}
                                         onNavigate={navigateTo}
                                         defaultExpanded={true}
@@ -1623,9 +1704,9 @@
                                     Object.keys(charInfo)
                                         .sort((a, b) => {
                                             if (charSort === 'name') return a.localeCompare(b);
-                                            if (charSort === 'level') { const ld = (charInfo[b]?.level || 0) - (charInfo[a]?.level || 0); if (ld !== 0) return ld; const prog = (name) => data.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0); return prog(b) - prog(a); }
+                                            if (charSort === 'level') { const ld = (charInfo[b]?.level || 0) - (charInfo[a]?.level || 0); if (ld !== 0) return ld; const prog = (name) => visibleData.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0); return prog(b) - prog(a); }
                                             if (charSort === 'profession') return (charInfo[a]?.profession || '').localeCompare(charInfo[b]?.profession || '') || a.localeCompare(b);
-                                            const prog = (name) => data.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0);
+                                            const prog = (name) => visibleData.reduce((s, season) => s + (season.charData[name]?.progress || 0), 0);
                                             return prog(b) - prog(a);
                                         })
                                         .map(name => (
@@ -1633,7 +1714,7 @@
                                                 key={name}
                                                 charName={name}
                                                 charInfo={charInfo}
-                                                seasons={data}
+                                                seasons={visibleData}
                                                 isHidden={hiddenChars.has(name)}
                                                 onToggleVisibility={toggleCharVisibility}
                                                 onNavigate={navigateTo}
