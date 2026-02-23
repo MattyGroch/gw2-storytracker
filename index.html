@@ -1396,6 +1396,13 @@
                                 Analyze your story progress across all characters.
                             </p>
 
+                            {error && (
+                                <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm mb-4">
+                                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
                             <button
                                 type="button"
                                 onClick={handleGw2meLogin}
@@ -1448,13 +1455,6 @@
                                     {loading ? <Loader2 className="animate-spin" /> : "Load Account"}
                                 </button>
                             </form>
-
-                            {error && (
-                                <div className="bg-red-900/20 border border-red-900/50 p-3 rounded flex items-start gap-2 text-red-200 text-sm mt-4">
-                                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
                         </div>
                         <p className="text-center text-sm text-gray-500 mt-5">
                             Want to see it in action first? <a href="demo.html" className="text-gw2-gold hover:text-gw2-gold-light transition-colors font-medium">Try the demo →</a>
