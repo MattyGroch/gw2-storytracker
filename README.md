@@ -11,18 +11,23 @@ A single-page web app that tracks your story journal progress across all charact
 - **"Continue Your Journey" recommendation** highlighting the character and story closest to completion with a progress bar and percentage
 - **Story Completion Overview** — collapsible summary showing every story season as a color-coded pill with completion status (completed, in-progress, or not started); click any pill to jump to that season
 - **By Story / By Character views** to browse progress from either angle, with cross-view navigation — click a character name to jump to their card, or click a story to jump to that season, with smooth scrolling and highlight animation
+- **Clean collapsed story cards** — each story card shows at a glance: completion status (Complete, X/Y Characters Completed, percentage in progress, or Not started), and for incomplete stories highlights the furthest character with their level/race/profession and a compact progress bar
+- **Act / Chapter / Episode structure** — story cards display their internal structure (e.g., "4 Acts · 16 Quests") and character progress rows show the current act/chapter label
+- **Progress bar dividers** — optional pip markers on progress bars showing act/chapter/episode boundaries within each story (toggleable in Settings)
+- **Expand All / Collapse All** buttons for both views to quickly open or close all cards at once
 - **Collapsible sections** — Story Completion Overview, Continue Your Journey, and individual season/character cards all collapse and expand, with state persisted across sessions
 - **Single-character mode** — accounts with one character get a streamlined layout without the view toggle
 - **Character sort options** — sort the By Character view by progress, name, level, or profession
 - **Character visibility toggle** — hide characters from the Story view to focus on the ones that matter; persisted across sessions with a hidden-characters banner for quick management
 - **Character details** — each character displays their level, race, profession with GW2 profession icons, and a quest progress bar
-- **Completion badges** — "Cleared" when any character finishes a season, "Complete" when all characters have finished
 - **Expansion ownership detection** — stories you don't own are locked and excluded from stats
+- **Settings panel** — gear icon in the navbar with toggles for progress bar dividers and hiding unowned content; preferences persist in localStorage
 - **Thematic story colors** — each story season is tinted with its in-game journal color (jungle green for HoT, purple for PoF, etc.)
 - **Persistent caching** with a staleness banner and relative timestamps so repeat visits load instantly without forced refreshes
 - **Two ways to log in:**
   - **[gw2.me](https://gw2.me)** OAuth2 — no API key needed, authorize with one click; multi-account support with an account picker and in-app account switching
   - **Manual API key** — paste a key from ArenaNet's API settings
+- **Slow connection handling** — if gw2.me subtoken generation takes longer than 15 seconds, a warning is shown with the option to fall back to API key login
 - **Info modals** explaining story access/ownership detection and gw2.me account management
 - **Installable as a PWA** — add to your home screen on mobile or desktop for app-like access
 - **Responsive design** — fully usable on mobile devices with adaptive layouts for every view

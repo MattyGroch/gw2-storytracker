@@ -334,6 +334,18 @@
             ]
         };
 
+        function getSeasonGroupSummary(seasonId) {
+            const groups = SEASON_GROUPS[seasonId];
+            if (!groups || groups.length <= 1) return null;
+            const labels = groups.map(g => g.label);
+            let type;
+            if (labels.some(l => l.startsWith('Act'))) type = 'Acts';
+            else if (labels.some(l => l.startsWith('Ep.'))) type = 'Episodes';
+            else if (labels.some(l => l.startsWith('Ch.'))) type = 'Chapters';
+            else type = 'Parts';
+            return { count: groups.length, type };
+        }
+
         function computeSeasonPips(seasonId, stories, storyQuestCounts, useQuestLevel) {
             const groups = SEASON_GROUPS[seasonId];
             if (!groups || groups.length <= 1) return [];
@@ -479,26 +491,26 @@
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, unit = "Chapters", isRecommended, charInfo, onNavigate, pips, groupBoundaries, showPips = true }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Chapters", charInfo, onNavigate, pips, groupBoundaries, showPips = true }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
+            const hasProgress = progress > 0;
             const info = charInfo?.[charName];
             const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total);
 
             return (
-                <div className={`flex items-center justify-between p-2 rounded ${isRecommended ? 'bg-gw2-gold-dark/15 border border-gw2-gold-dark/40' : 'hover:bg-white/5'}`}>
+                <div className="flex items-center justify-between p-2 rounded hover:bg-white/5">
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                         {info?.profession && PROFESSION_ICONS[info.profession]
                             ? <img src={PROFESSION_ICONS[info.profession]} alt={info.profession} className="w-6 h-6 sm:w-8 sm:h-8 shrink-0" />
-                            : <User size={16} className={isRecommended ? "text-gw2-gold-light" : "text-gray-500"} />
+                            : <User size={16} className="text-gray-500" />
                         }
                         <div className="flex flex-col min-w-0">
-                            <span className={`text-sm font-medium ${isRecommended ? 'text-amber-200' : 'text-gray-300'} truncate`}>
+                            <span className="text-sm font-medium text-gray-300 truncate">
                                 {onNavigate ? (
                                     <button onClick={() => onNavigate('character', charName)} className="hover:underline hover:text-gw2-gold-light transition-colors text-left">{charName}</button>
                                 ) : charName}
                                 {info && <span className="hidden sm:inline ml-1.5 text-xs text-gray-500 font-normal">Lv.{info.level} {info.race} {info.profession}</span>}
-                                {isRecommended && <span className="ml-2 text-xs bg-gw2-gold-dark text-amber-100 px-1.5 py-0.5 rounded hidden sm:inline">Recommended</span>}
                             </span>
                             {info && <span className="text-xs text-gray-500 sm:hidden">Lv.{info.level} {info.race} {info.profession}</span>}
                             <span className="text-xs text-gray-500">
@@ -508,16 +520,20 @@
                         </div>
                     </div>
                     <div className="w-16 sm:w-24 ml-2 sm:ml-4">
-                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : (isRecommended ? "bg-gw2-gold" : "bg-gray-500")} pips={showPips ? pips : []} />
+                        <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-500"} pips={showPips ? pips : []} />
                     </div>
                 </div>
             );
         };
 
-        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true }) => {
+        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true, expandAllSignal }) => {
             const [expanded, setExpanded] = useState(false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
+
+            useEffect(() => {
+                if (expandAllSignal) setExpanded(expandAllSignal.expanded);
+            }, [expandAllSignal]);
             
             useEffect(() => {
                 if (focusId === season.id) {
@@ -531,7 +547,6 @@
                 }
             }, [focusId, season.id, onNavigated]);
 
-            // Sort characters: Recommended first, then by progress desc
             const sortedChars = useMemo(() => {
                 return Object.entries(characters)
                     .map(([name, data]) => ({ name, ...data }))
@@ -543,88 +558,115 @@
             }, [characters, recommendedChar]);
 
             const isOwned = season.owned !== false;
-            const isAllComplete = isOwned && sortedChars.every(c => c.progress >= c.total);
-            const isCompletedByAny = isOwned && sortedChars.some(c => c.progress >= c.total);
+            const isAllComplete = isOwned && sortedChars.length > 0 && sortedChars.every(c => c.progress >= c.total);
             const themeColor = STORY_COLORS[season.name];
+            const groupSummary = getSeasonGroupSummary(season.id);
+
+            const completedCount = isOwned ? sortedChars.filter(c => c.progress >= c.total).length : 0;
+            const totalCharCount = sortedChars.length;
+            const furthestIncomplete = useMemo(() => {
+                if (!isOwned) return null;
+                let best = null;
+                for (const c of sortedChars) {
+                    if (c.progress > 0 && c.progress < c.total) {
+                        if (!best || c.progress > best.progress) best = c;
+                    }
+                }
+                return best;
+            }, [sortedChars, isOwned]);
+            const furthestGroupLabel = furthestIncomplete
+                ? getCurrentGroupLabel(season.groupBoundaries, furthestIncomplete.progress, furthestIncomplete.total)
+                : null;
+
+            const toggleExpanded = () => { if (isOwned) setExpanded(prev => !prev); };
 
             return (
                 <div
                     ref={cardRef}
-                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''} ${isOwned && recommendedChar ? 'ring-1 ring-gw2-gold-dark/60' : ''}`}
+                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''}`}
                     style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
                 >
-                    {/* Header */}
                     <div
-                        className="p-3 sm:p-4 flex items-center justify-between"
+                        className={`p-3 sm:p-4 ${isOwned ? 'cursor-pointer' : ''}`}
                         style={themeColor
                             ? { background: `linear-gradient(to right, ${themeColor}30, transparent)` }
                             : { background: 'linear-gradient(to right, rgb(41 37 36), transparent)' }
                         }
+                        onClick={toggleExpanded}
                     >
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            <BookOpen className={isOwned ? "text-gw2-gold" : "text-gray-600"} size={24} />
-                            <div>
-                                <h3 className="text-base sm:text-lg font-bold text-gray-100 font-display">{season.name}</h3>
-                                <p className="text-xs text-gray-400">
-                                    {season.totalStories} {season.unit || 'Chapters'}
-                                    {isCompletedByAny && !isAllComplete && (
-                                        <span className="ml-2 text-green-500 inline-flex items-center">
-                                            <CheckCircle2 size={12} className="mr-0.5" /> Cleared
-                                        </span>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                <BookOpen className={`shrink-0 ${completedCount > 0 ? "text-green-500" : isOwned ? "text-gw2-gold" : "text-gray-600"}`} size={24} />
+                                <div className="min-w-0">
+                                    <h3 className="text-base sm:text-lg font-bold text-gray-100 font-display truncate">{season.name}</h3>
+                                    <p className="text-xs text-gray-400">
+                                        {groupSummary && <>{groupSummary.count} {groupSummary.type} · </>}{season.totalStories} {season.unit || 'Chapters'}
+                                    </p>
+                                    {!isOwned ? (
+                                        <p className="text-xs text-gray-500 italic mt-0.5">
+                                            <Lock size={12} className="inline mr-1 align-text-bottom" />Requires {season.requiredExpansion}
+                                        </p>
+                                    ) : isAllComplete ? (
+                                        <p className="text-xs text-green-400 mt-0.5">
+                                            <CheckCircle2 size={12} className="inline mr-1 align-text-bottom" />Complete · {totalCharCount}/{totalCharCount} Characters
+                                        </p>
+                                    ) : completedCount > 0 ? (<>
+                                        <p className="text-xs text-green-500/80 mt-0.5">
+                                            <span className="text-green-400">{completedCount}</span>/{totalCharCount} Characters Completed
+                                        </p>
+                                        {furthestIncomplete && (() => {
+                                            const fi = charInfo?.[furthestIncomplete.name];
+                                            const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
+                                            return (<>
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    <PlayCircle size={12} className="inline mr-1 align-text-bottom text-gw2-gold" /><span className="text-gw2-gold-light font-medium">{furthestIncomplete.name}</span>
+                                                    {fi && <span className="text-gray-500"> · Lv.{fi.level} {fi.race} {fi.profession}</span>}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="w-24 sm:w-32">
+                                                        <ProgressBar current={furthestIncomplete.progress} total={furthestIncomplete.total}
+                                                            colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} />
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">
+                                                        {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
+                                                    </span>
+                                                </div>
+                                            </>);
+                                        })()}
+                                    </>) : furthestIncomplete ? (() => {
+                                        const fi = charInfo?.[furthestIncomplete.name];
+                                        const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
+                                        return (<>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                <PlayCircle size={12} className="inline mr-1 align-text-bottom text-gw2-gold" /><span className="text-gw2-gold-light font-medium">{furthestIncomplete.name}</span>
+                                                {fi && <span className="text-gray-500"> · Lv.{fi.level} {fi.race} {fi.profession}</span>}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="w-24 sm:w-32">
+                                                    <ProgressBar current={furthestIncomplete.progress} total={furthestIncomplete.total}
+                                                        colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} />
+                                                </div>
+                                                <span className="text-xs text-gray-500">
+                                                    {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
+                                                </span>
+                                            </div>
+                                        </>);
+                                    })() : (
+                                        <p className="text-xs text-gray-500 italic mt-0.5">Not started</p>
                                     )}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                            {!isOwned ? (
-                                <span className="flex items-center text-gray-500 text-sm italic">
-                                    <Lock size={14} className="mr-1.5" /> Requires {season.requiredExpansion}
-                                </span>
-                            ) : isAllComplete ? (
-                                <span className="flex items-center text-green-500 text-sm font-medium bg-green-900/20 px-3 py-1 rounded-full">
-                                    <CheckCircle2 size={16} className="mr-1.5" /> Complete
-                                </span>
-                            ) : recommendedChar ? (
-                                <div className="text-right hidden sm:block">
-                                    <div className="text-xs text-gray-400 uppercase tracking-wider">Next Up</div>
-                                    <div className="text-gw2-gold-light font-bold flex items-center justify-end">
-                                        {recommendedChar.name} <PlayCircle size={14} className="ml-1" />
-                                    </div>
                                 </div>
-                            ) : (
-                                <span className="text-gray-500 text-sm italic">No active progress</span>
-                            )}
+                            </div>
                             {isOwned && (
-                                <button 
-                                    onClick={() => setExpanded(!expanded)}
-                                    className="p-1 hover:bg-stone-700 rounded transition-colors"
-                                >
+                                <div className="p-1 hover:bg-stone-700 rounded transition-colors shrink-0 ml-2">
                                     {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                </button>
+                                </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Content */}
-                    {isOwned && (expanded || recommendedChar) && (
+                    {isOwned && expanded && (
                         <div className="p-3 sm:p-4 border-t border-stone-800 space-y-2">
-                             {!expanded && recommendedChar && (
-                                <CharacterRow 
-                                    charName={recommendedChar.name} 
-                                    progress={recommendedChar.progress} 
-                                    total={recommendedChar.total} 
-                                    unit={season.unit}
-                                    isRecommended={true}
-                                    charInfo={charInfo}
-                                    onNavigate={onNavigate}
-                                    pips={season.pips}
-                                    groupBoundaries={season.groupBoundaries}
-                                    showPips={showPips}
-                                />
-                             )}
-
-                             {expanded && sortedChars.length > 0 && (
+                             {sortedChars.length > 0 ? (
                                 <div className="space-y-2">
                                     {sortedChars.map(char => (
                                         <CharacterRow 
@@ -633,7 +675,6 @@
                                             progress={char.progress}
                                             total={char.total}
                                             unit={season.unit}
-                                            isRecommended={char.name === recommendedChar?.name}
                                             charInfo={charInfo}
                                             onNavigate={onNavigate}
                                             pips={season.pips}
@@ -642,9 +683,7 @@
                                         />
                                     ))}
                                 </div>
-                             )}
-                             
-                             {expanded && sortedChars.length === 0 && (
+                             ) : (
                                  <div className="text-center text-gray-500 py-2">No characters found.</div>
                              )}
                         </div>
@@ -848,11 +887,15 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded, showPips = true }) => {
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded, showPips = true, expandAllSignal }) => {
             const [expanded, setExpanded] = useState(defaultExpanded || false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
             const info = charInfo?.[charName];
+
+            useEffect(() => {
+                if (expandAllSignal) setExpanded(expandAllSignal.expanded);
+            }, [expandAllSignal]);
 
             useEffect(() => {
                 if (defaultExpanded) setExpanded(true);
@@ -1011,6 +1054,7 @@
             const [showGw2meInfo, setShowGw2meInfo] = useState(false);
             const [showAccessInfo, setShowAccessInfo] = useState(false);
             const [showAppSettings, setShowAppSettings] = useState(false);
+            const [expandAllSignal, setExpandAllSignal] = useState(null);
             const appSettingsRef = useRef(null);
             useEffect(() => {
                 if (!showAppSettings) return;
@@ -1924,6 +1968,23 @@
                                 <HeroRecommendation data={visibleData} charInfo={charInfo} showPips={showPips} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
+                                {!isSingleChar && (
+                                    <div className="flex justify-end gap-2 mb-3">
+                                        <button
+                                            onClick={() => setExpandAllSignal({ expanded: true, v: Date.now() })}
+                                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gw2-gold-light transition-colors px-2 py-1 rounded hover:bg-stone-800"
+                                        >
+                                            <ChevronDown size={14} /> Expand All
+                                        </button>
+                                        <button
+                                            onClick={() => setExpandAllSignal({ expanded: false, v: Date.now() })}
+                                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gw2-gold-light transition-colors px-2 py-1 rounded hover:bg-stone-800"
+                                        >
+                                            <ChevronUp size={14} /> Collapse All
+                                        </button>
+                                    </div>
+                                )}
+
                                 {isSingleChar ? (
                                     <CharacterCard
                                         charName={Object.keys(charInfo)[0]}
@@ -1961,6 +2022,7 @@
                                             focusId={navigateTarget?.type === 'season' ? navigateTarget.id : null}
                                             onNavigated={() => setNavigateTarget(null)}
                                             showPips={showPips}
+                                            expandAllSignal={expandAllSignal}
                                         />
                                     ))
                                 ) : (
@@ -1984,6 +2046,7 @@
                                                 focusId={navigateTarget?.type === 'character' ? navigateTarget.id : null}
                                                 onNavigated={() => setNavigateTarget(null)}
                                                 showPips={showPips}
+                                                expandAllSignal={expandAllSignal}
                                             />
                                         ))
                                 )}
