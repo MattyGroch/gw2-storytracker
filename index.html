@@ -529,7 +529,18 @@
         const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true, expandAllSignal }) => {
             const [expanded, setExpanded] = useState(false);
             const [highlight, setHighlight] = useState(false);
+            const [showOwnershipInfo, setShowOwnershipInfo] = useState(false);
             const cardRef = useRef(null);
+            const ownershipInfoRef = useRef(null);
+
+            useEffect(() => {
+                if (!showOwnershipInfo) return;
+                const handler = (e) => {
+                    if (ownershipInfoRef.current && !ownershipInfoRef.current.contains(e.target)) setShowOwnershipInfo(false);
+                };
+                document.addEventListener('mousedown', handler);
+                return () => document.removeEventListener('mousedown', handler);
+            }, [showOwnershipInfo]);
 
             useEffect(() => {
                 if (expandAllSignal) setExpanded(expandAllSignal.expanded);
@@ -583,7 +594,7 @@
             return (
                 <div
                     ref={cardRef}
-                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''}`}
+                    className={`card-bg rounded-lg border ${showOwnershipInfo ? '' : 'overflow-hidden'} mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''}`}
                     style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
                 >
                     <div
@@ -656,11 +667,28 @@
                                     )}
                                 </div>
                             </div>
-                            {isOwned && (
+                            {isOwned ? (
                                 <div className="p-1 hover:bg-stone-700 rounded transition-colors shrink-0 ml-2">
                                     {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </div>
-                            )}
+                            ) : MANUAL_OWNERSHIP_STORIES.includes(season.name) ? (
+                                <div className="relative shrink-0 ml-2" ref={ownershipInfoRef}>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowOwnershipInfo(p => !p); }}
+                                        className="p-1 rounded transition-colors text-gray-500 hover:text-gw2-gold-light"
+                                        title="Why is this locked?"
+                                    >
+                                        <Info size={18} />
+                                    </button>
+                                    {showOwnershipInfo && (
+                                        <div className="absolute right-0 top-full mt-2 z-30 w-72 border border-stone-700 rounded-lg shadow-xl p-3" style={{ backgroundColor: '#1e1b17', opacity: 1 }}>
+                                            <p className="text-xs text-gray-400">
+                                                The GW2 API does not report ownership of Living World Seasons, The Icebrood Saga, or Visions of Eternity. Use the <Settings size={10} className="inline align-text-bottom text-gw2-gold" /> gear icon in the <span className="text-gw2-gold-light font-medium">Story Completion Overview</span> to mark which of these you own.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 

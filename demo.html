@@ -72,6 +72,7 @@
         const Eye = (props) => (<IconBase {...props}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></IconBase>);
         const EyeOff = (props) => (<IconBase {...props}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></IconBase>);
         const Settings = (props) => (<IconBase {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></IconBase>);
+        const Info = (props) => (<IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></IconBase>);
         const Lock = (props) => (<IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>);
         const ProgressCircle = ({ size = 14, progress = 0, className, style }) => {
             const stroke = 1.5;
@@ -185,7 +186,18 @@
         const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, expandAllSignal }) => {
             const [expanded, setExpanded] = useState(false);
             const [highlight, setHighlight] = useState(false);
+            const [showOwnershipInfo, setShowOwnershipInfo] = useState(false);
             const cardRef = useRef(null);
+            const ownershipInfoRef = useRef(null);
+
+            useEffect(() => {
+                if (!showOwnershipInfo) return;
+                const handler = (e) => {
+                    if (ownershipInfoRef.current && !ownershipInfoRef.current.contains(e.target)) setShowOwnershipInfo(false);
+                };
+                document.addEventListener('mousedown', handler);
+                return () => document.removeEventListener('mousedown', handler);
+            }, [showOwnershipInfo]);
 
             useEffect(() => {
                 if (expandAllSignal) setExpanded(expandAllSignal.expanded);
@@ -235,7 +247,7 @@
             return (
                 <div
                     ref={cardRef}
-                    className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''}`}
+                    className={`card-bg rounded-lg border ${showOwnershipInfo ? '' : 'overflow-hidden'} mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${!isOwned ? 'opacity-40' : ''}`}
                     style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}
                 >
                     <div
@@ -306,11 +318,28 @@
                                     )}
                                 </div>
                             </div>
-                            {isOwned && (
+                            {isOwned ? (
                                 <div className="p-1 hover:bg-stone-700 rounded transition-colors shrink-0 ml-2">
                                     {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </div>
-                            )}
+                            ) : MANUAL_OWNERSHIP_STORIES.includes(season.name) ? (
+                                <div className="relative shrink-0 ml-2" ref={ownershipInfoRef}>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowOwnershipInfo(p => !p); }}
+                                        className="p-1 rounded transition-colors text-gray-500 hover:text-gw2-gold-light"
+                                        title="Why is this locked?"
+                                    >
+                                        <Info size={18} />
+                                    </button>
+                                    {showOwnershipInfo && (
+                                        <div className="absolute right-0 top-full mt-2 z-30 w-72 border border-stone-700 rounded-lg shadow-xl p-3" style={{ backgroundColor: '#1e1b17', opacity: 1 }}>
+                                            <p className="text-xs text-gray-400">
+                                                The GW2 API does not report ownership of Living World Seasons, The Icebrood Saga, or Visions of Eternity. Use the <Settings size={10} className="inline align-text-bottom text-gw2-gold" /> gear icon in the <span className="text-gw2-gold-light font-medium">Story Completion Overview</span> to mark which of these you own.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
