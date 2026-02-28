@@ -4,21 +4,10 @@ services:
     container_name: gw2-storytracker
     restart: unless-stopped
     labels:
-      - "traefik.docker.network=proxy"
       - "traefik.enable=true"
-      # Middleware: HTTP to HTTPS Redirect
-      - "traefik.http.middlewares.gw2-st-https-redirect.redirectscheme.scheme=https"
-      # Router: Secure (HTTPS)
-      - "traefik.http.routers.gw2-st-secure.entrypoints=https"
-      - "traefik.http.routers.gw2-st-secure.rule=Host(`gw2storytracker.com`) || Host(`www.gw2storytracker.com`)"
-      - "traefik.http.routers.gw2-st-secure.service=gw2-st"
-      - "traefik.http.routers.gw2-st-secure.tls=true"
-      - "traefik.http.routers.gw2-st-secure.tls.certresolver=http"
-      # Router: Insecure (HTTP)
-      - "traefik.http.routers.gw2-st.entrypoints=http"
-      - "traefik.http.routers.gw2-st.middlewares=gw2-st-https-redirect"
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.gw2-st.rule=Host(`gw2storytracker.com`) || Host(`www.gw2storytracker.com`)"
-      # Service: Port Configuration (Internal Container Port)
+      - "traefik.http.routers.gw2-st.entrypoints=websecure"
       - "traefik.http.services.gw2-st.loadbalancer.server.port=8080"
     networks:
       - proxy
