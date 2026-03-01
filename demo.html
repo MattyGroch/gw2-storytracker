@@ -74,6 +74,8 @@
         const Settings = (props) => (<IconBase {...props}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></IconBase>);
         const Info = (props) => (<IconBase {...props}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></IconBase>);
         const Lock = (props) => (<IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>);
+        const Share2 = (props) => (<IconBase {...props}><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></IconBase>);
+        const ClipboardCheck = (props) => (<IconBase {...props}><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></IconBase>);
         const ProgressCircle = ({ size = 14, progress = 0, className, style }) => {
             const stroke = 1.5;
             const r = (size - stroke) / 2;
@@ -138,6 +140,59 @@
             'The Icebrood Saga',
             'Visions of Eternity',
         ];
+
+        const SEASON_ORDER = [
+            'My Story', 'Living World Season 1', 'Living World Season 2',
+            'Heart of Thorns', 'Living World Season 3', 'Path of Fire',
+            'Living World Season 4', 'The Icebrood Saga', 'End of Dragons',
+            'Secrets of the Obscure', 'Janthir Wilds', 'Visions of Eternity',
+        ];
+
+        const SHARE_VERSION = 2;
+
+        function encodeShareData(data, playerName) {
+            const nameBytes = new TextEncoder().encode(playerName || '');
+            const bytes = [SHARE_VERSION, nameBytes.length, ...nameBytes];
+            for (const name of SEASON_ORDER) {
+                const season = data.find(s => s.name === name);
+                if (!season) { bytes.push(255); continue; }
+                if (season.owned === false) { bytes.push(255); continue; }
+                const chars = Object.values(season.charData);
+                if (chars.length === 0) { bytes.push(0); continue; }
+                const best = Math.max(...chars.map(c => c.total > 0 ? Math.round((c.progress / c.total) * 100) : 0));
+                bytes.push(Math.min(best, 100));
+            }
+            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function decodeShareData(str) {
+            try {
+                const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                const version = bytes[0];
+                let offset, playerName = '';
+                if (version === 2) {
+                    const nameLen = bytes[1];
+                    playerName = new TextDecoder().decode(bytes.slice(2, 2 + nameLen));
+                    offset = 2 + nameLen;
+                } else if (version === 1) {
+                    offset = 1;
+                } else { return null; }
+                if (bytes.length < offset + SEASON_ORDER.length) return null;
+                const seasons = SEASON_ORDER.map((name, i) => {
+                    const val = bytes[offset + i];
+                    return {
+                        name,
+                        owned: val !== 255,
+                        progress: val === 255 ? 0 : val,
+                        total: 100,
+                        color: STORY_COLORS[name],
+                        shortName: STORY_SHORT_NAMES[name] || name,
+                    };
+                });
+                return { playerName, seasons };
+            } catch { return null; }
+        }
 
         // --- Shared Components ---
 
@@ -739,6 +794,7 @@
             const [navigateTarget, setNavigateTarget] = useState(null);
             const [hiddenChars, setHiddenChars] = useState(new Set());
             const [expandAllSignal, setExpandAllSignal] = useState(null);
+            const [shareCopied, setShareCopied] = useState(false);
 
             const navigateTo = useCallback((type, id) => {
                 setViewMode(type === 'character' ? 'character' : 'season');
@@ -803,10 +859,29 @@
                                 <img src="logo.svg" alt="GW2 Story Tracker" className="w-8 h-8 rounded" />
                                 <span className="font-bold text-xl hidden sm:inline font-display">Guild Wars 2 Story Tracker</span>
                             </div>
-                            <a href="index.html"
-                                className="gw2-gradient text-white text-sm font-bold px-3 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity">
-                                <span className="hidden sm:inline">Use Your Own Account</span><span className="sm:hidden">Log In</span>
-                            </a>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => {
+                                        const encoded = encodeShareData(visibleData, 'Demo Account.1234');
+                                        const url = `${window.location.origin}${window.location.pathname.replace('demo.html', '')}?s=${encoded}`;
+                                        navigator.clipboard.writeText(url).then(() => {
+                                            setShareCopied(true);
+                                            setTimeout(() => setShareCopied(false), 2000);
+                                        });
+                                    }}
+                                    className="text-gray-400 hover:text-gw2-gold-light flex items-center gap-2 text-sm transition-colors p-1"
+                                    title="Copy share link"
+                                >
+                                    {shareCopied
+                                        ? <><ClipboardCheck size={20} className="sm:w-4 sm:h-4 text-green-400" /> <span className="hidden sm:inline text-green-400">Copied!</span></>
+                                        : <><Share2 size={20} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Share</span></>
+                                    }
+                                </button>
+                                <a href="index.html"
+                                    className="gw2-gradient text-white text-sm font-bold px-3 sm:px-4 py-2 rounded hover:opacity-90 transition-opacity">
+                                    <span className="hidden sm:inline">Use Your Own Account</span><span className="sm:hidden">Log In</span>
+                                </a>
+                            </div>
                         </div>
                     </nav>
 

@@ -225,6 +225,23 @@
             </IconBase>
         );
 
+        const Share2 = (props) => (
+            <IconBase {...props}>
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </IconBase>
+        );
+        const ClipboardCheck = (props) => (
+            <IconBase {...props}>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                <path d="m9 14 2 2 4-4" />
+            </IconBase>
+        );
+
         // --- API & Helper Functions ---
 
         const API_BASE = 'https://api.guildwars2.com/v2';
@@ -275,6 +292,59 @@
             'Janthir Wilds':            '#2e70a0',
             'Visions of Eternity':      '#c85018',
         };
+
+        const SEASON_ORDER = [
+            'My Story', 'Living World Season 1', 'Living World Season 2',
+            'Heart of Thorns', 'Living World Season 3', 'Path of Fire',
+            'Living World Season 4', 'The Icebrood Saga', 'End of Dragons',
+            'Secrets of the Obscure', 'Janthir Wilds', 'Visions of Eternity',
+        ];
+
+        const SHARE_VERSION = 2;
+
+        function encodeShareData(data, playerName) {
+            const nameBytes = new TextEncoder().encode(playerName || '');
+            const bytes = [SHARE_VERSION, nameBytes.length, ...nameBytes];
+            for (const name of SEASON_ORDER) {
+                const season = data.find(s => s.name === name);
+                if (!season) { bytes.push(255); continue; }
+                if (season.owned === false) { bytes.push(255); continue; }
+                const chars = Object.values(season.charData);
+                if (chars.length === 0) { bytes.push(0); continue; }
+                const best = Math.max(...chars.map(c => c.total > 0 ? Math.round((c.progress / c.total) * 100) : 0));
+                bytes.push(Math.min(best, 100));
+            }
+            return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function decodeShareData(str) {
+            try {
+                const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                const version = bytes[0];
+                let offset, playerName = '';
+                if (version === 2) {
+                    const nameLen = bytes[1];
+                    playerName = new TextDecoder().decode(bytes.slice(2, 2 + nameLen));
+                    offset = 2 + nameLen;
+                } else if (version === 1) {
+                    offset = 1;
+                } else { return null; }
+                if (bytes.length < offset + SEASON_ORDER.length) return null;
+                const seasons = SEASON_ORDER.map((name, i) => {
+                    const val = bytes[offset + i];
+                    return {
+                        name,
+                        owned: val !== 255,
+                        progress: val === 255 ? 0 : val,
+                        total: 100,
+                        color: STORY_COLORS[name],
+                        shortName: STORY_SHORT_NAMES[name] || name,
+                    };
+                });
+                return { playerName, seasons };
+            } catch { return null; }
+        }
 
         const SEASON_GROUPS = {
             '215AAA0F-CDAC-4F93-86DA-C155A99B5784': [ // My Story
@@ -1075,7 +1145,109 @@
             );
         };
 
+        const SharedView = ({ shareData }) => {
+            const { playerName, seasons } = shareData;
+            const title = playerName ? `${playerName}'s Story Progress` : 'Shared Story Progress';
+            return (
+                <div className="min-h-screen pb-12">
+                    <nav className="card-bg border-b border-stone-800 sticky top-0 z-50">
+                        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <img src="logo.svg" alt="GW2 Story Tracker" className="w-8 h-8 rounded" />
+                                <span className="font-bold text-xl hidden sm:inline font-display">Guild Wars 2 Story Tracker</span>
+                            </div>
+                            <a href={window.location.origin + window.location.pathname}
+                                className="text-gw2-gold hover:text-gw2-gold-light text-sm font-medium transition-colors">
+                                Track your own journey →
+                            </a>
+                        </div>
+                    </nav>
+                    <main className="max-w-4xl mx-auto px-4 py-6">
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-100 font-display mb-4 text-center">{title}</h2>
+                        <div className="card-bg rounded-lg border border-gw2-gold-dark/40 p-4 sm:p-6 mb-6 bg-gradient-to-r from-gw2-gold-dark/10 to-transparent">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Share2 className="text-gw2-gold" size={18} />
+                                <span className="text-xs text-gw2-gold uppercase tracking-wider font-bold">Shared Story Journal</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center">
+                                {seasons.map(s => {
+                                    const completed = s.owned && s.progress >= 100;
+                                    const inProgress = s.owned && s.progress > 0 && s.progress < 100;
+                                    const pillClass = !s.owned
+                                        ? 'border-stone-800 text-gray-600 opacity-40'
+                                        : completed ? 'border-stone-700 text-gray-200'
+                                        : inProgress ? 'border-stone-700 text-gray-200 opacity-85'
+                                        : 'border-stone-800 text-gray-400 opacity-70';
+                                    const borderColor = !s.owned ? (s.color ? s.color + '30' : undefined)
+                                        : completed ? s.color : inProgress ? s.color : s.color + '60';
+                                    return (
+                                        <span key={s.name}
+                                            className={`inline-flex items-center gap-1.5 text-sm font-medium px-2.5 py-1 rounded border ${pillClass}`}
+                                            style={s.color ? { borderLeft: `3px solid ${borderColor}` } : undefined}>
+                                            {!s.owned && <Lock size={12} className="text-gray-600 shrink-0" />}
+                                            {completed && <CheckCircle2 size={14} className="text-green-500 shrink-0" />}
+                                            {inProgress && <ProgressCircle size={14} progress={s.progress / 100} className="text-gw2-gold" />}
+                                            {s.shortName}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            {seasons.map(s => {
+                                const completed = s.owned && s.progress >= 100;
+                                const inProgress = s.owned && s.progress > 0 && s.progress < 100;
+                                const themeColor = s.color;
+                                return (
+                                    <div key={s.name}
+                                        className={`card-bg rounded-lg border overflow-hidden ${!s.owned ? 'opacity-40 border-stone-800' : 'border-stone-800'}`}
+                                        style={themeColor ? { borderLeft: `4px solid ${themeColor}` } : undefined}>
+                                        <div className="p-4 flex items-center gap-3">
+                                            <div className="flex flex-col items-center w-8 shrink-0">
+                                                <BookOpen size={18} className={completed ? 'text-green-500' : 'text-gray-500'} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-base font-bold text-gray-100 font-display truncate">{s.name}</h3>
+                                                {!s.owned && (
+                                                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><Lock size={10} /> Not Owned</p>
+                                                )}
+                                                {s.owned && completed && (
+                                                    <p className="text-xs text-green-400 mt-0.5">✓ Complete</p>
+                                                )}
+                                                {s.owned && !completed && s.progress === 0 && (
+                                                    <p className="text-xs text-gray-500 mt-0.5">Not started</p>
+                                                )}
+                                                {inProgress && (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <div className="w-24 sm:w-32">
+                                                            <ProgressBar current={s.progress} total={100} colorClass="bg-gw2-gold" />
+                                                        </div>
+                                                        <span className="text-xs text-gray-500">{s.progress}%</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </main>
+                    <footer className="text-center text-xs text-gray-600 mt-6">
+                        <a href="privacy.html" className="hover:text-gray-400 transition-colors">Privacy Policy</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="tos.html" className="hover:text-gray-400 transition-colors">Terms of Service</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                    </footer>
+                </div>
+            );
+        };
+
         const App = () => {
+            const shareParam = new URLSearchParams(window.location.search).get('s');
+            const shareData = shareParam ? decodeShareData(shareParam) : null;
+            if (shareData) return <SharedView shareData={shareData} />;
+
             const storedApiKey = localStorage.getItem('gw2_api_key') || '';
             const storedGw2meToken = localStorage.getItem('gw2me_access_token') || '';
             const storedGw2meAccountId = localStorage.getItem('gw2me_account_id') || '';
@@ -1106,6 +1278,7 @@
             const [showAccessInfo, setShowAccessInfo] = useState(false);
             const [showAppSettings, setShowAppSettings] = useState(false);
             const [expandAllSignal, setExpandAllSignal] = useState(null);
+            const [shareCopied, setShareCopied] = useState(false);
             const appSettingsRef = useRef(null);
             useEffect(() => {
                 if (!showAppSettings) return;
@@ -1849,6 +2022,25 @@
                                         </div>
                                     )}
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        if (!visibleData) return;
+                                        const encoded = encodeShareData(visibleData, accountName);
+                                        const url = `${window.location.origin}${window.location.pathname}?s=${encoded}`;
+                                        navigator.clipboard.writeText(url).then(() => {
+                                            setShareCopied(true);
+                                            setTimeout(() => setShareCopied(false), 2000);
+                                        });
+                                    }}
+                                    disabled={!visibleData}
+                                    className="text-gray-400 hover:text-gw2-gold-light flex items-center gap-2 text-sm transition-colors p-1 disabled:opacity-50"
+                                    title="Copy share link"
+                                >
+                                    {shareCopied
+                                        ? <><ClipboardCheck size={20} className="sm:w-4 sm:h-4 text-green-400" /> <span className="hidden sm:inline text-green-400">Copied!</span></>
+                                        : <><Share2 size={20} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Share</span></>
+                                    }
+                                </button>
                                 <button 
                                     onClick={logout}
                                     className="text-gray-400 hover:text-white flex items-center gap-2 text-sm transition-colors p-1"
