@@ -675,11 +675,37 @@
                         }
                         onClick={toggleExpanded}
                     >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                <BookOpen className={`shrink-0 ${completedCount > 0 ? "text-green-500" : isOwned ? "text-gw2-gold" : "text-gray-600"}`} size={24} />
-                                <div className="min-w-0">
+                        <div>
+                            <div className="flex items-center justify-between mb-0.5">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                    <BookOpen className={`shrink-0 ${completedCount > 0 ? "text-green-500" : isOwned ? "text-gw2-gold" : "text-gray-600"}`} size={24} />
                                     <h3 className="text-base sm:text-lg font-bold text-gray-100 font-display truncate">{season.name}</h3>
+                                </div>
+                                {isOwned ? (
+                                    <div className="p-1 hover:bg-stone-700 rounded transition-colors shrink-0 ml-2">
+                                        {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                    </div>
+                                ) : MANUAL_OWNERSHIP_STORIES.includes(season.name) ? (
+                                    <div className="relative shrink-0 ml-2" ref={ownershipInfoRef}>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setShowOwnershipInfo(p => !p); }}
+                                            className="p-1 rounded transition-colors text-gray-500 hover:text-gw2-gold-light"
+                                            title="Why is this locked?"
+                                        >
+                                            <Info size={18} />
+                                        </button>
+                                        {showOwnershipInfo && (
+                                            <div className="absolute right-0 top-full mt-2 z-30 w-72 border border-stone-700 rounded-lg shadow-xl p-3" style={{ backgroundColor: '#1e1b17', opacity: 1 }}>
+                                                <p className="text-xs text-gray-400">
+                                                    The GW2 API does not report ownership of Living World Seasons, The Icebrood Saga, or Visions of Eternity. Use the <Settings size={10} className="inline align-text-bottom text-gw2-gold" /> gear icon in the <span className="text-gw2-gold-light font-medium">Story Completion Overview</span> to mark which of these you own.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null}
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-0.5 sm:gap-4 ml-8 sm:ml-9">
+                                <div className="min-w-0">
                                     <p className="text-xs text-gray-400">
                                         {groupSummary && <>{groupSummary.count} {groupSummary.type} · </>}{season.totalStories} {season.unit || 'Chapters'}
                                     </p>
@@ -691,74 +717,37 @@
                                         <p className="text-xs text-green-400 mt-0.5">
                                             <CheckCircle2 size={12} className="inline mr-1 align-text-bottom" />Complete · {totalCharCount}/{totalCharCount} Characters
                                         </p>
-                                    ) : completedCount > 0 ? (<>
+                                    ) : completedCount > 0 ? (
                                         <p className="text-xs text-green-500/80 mt-0.5">
                                             <span className="text-green-400">{completedCount}</span>/{totalCharCount} Characters Completed
                                         </p>
-                                        {furthestIncomplete && (() => {
-                                            const fi = charInfo?.[furthestIncomplete.name];
-                                            const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
-                                            return (<>
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    <PlayCircle size={12} className="inline mr-1 align-text-bottom text-gw2-gold" /><span className="text-gw2-gold-light font-medium">{furthestIncomplete.name}</span>
-                                                    {fi && <span className="text-gray-500"> · Lv.{fi.level} {fi.race} {fi.profession}</span>}
-                                                </p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <div className="w-24 sm:w-32">
-                                                        <ProgressBar current={furthestIncomplete.progress} total={furthestIncomplete.total}
-                                                            colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} />
-                                                    </div>
-                                                    <span className="text-xs text-gray-500">
-                                                        {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
-                                                    </span>
-                                                </div>
-                                            </>);
-                                        })()}
-                                    </>) : furthestIncomplete ? (() => {
-                                        const fi = charInfo?.[furthestIncomplete.name];
-                                        const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
-                                        return (<>
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                <PlayCircle size={12} className="inline mr-1 align-text-bottom text-gw2-gold" /><span className="text-gw2-gold-light font-medium">{furthestIncomplete.name}</span>
+                                    ) : !furthestIncomplete ? (
+                                        <p className="text-xs text-gray-500 italic mt-0.5">Not started</p>
+                                    ) : null}
+                                </div>
+                                {isOwned && furthestIncomplete && (() => {
+                                    const fi = charInfo?.[furthestIncomplete.name];
+                                    const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
+                                    return (
+                                        <div className="shrink-0 sm:text-right">
+                                            <p className="text-xs text-gray-400">
+                                                <PlayCircle size={12} className="inline mr-1 align-text-bottom text-gw2-gold" />
+                                                <span className="text-gw2-gold-light font-medium">{furthestIncomplete.name}</span>
                                                 {fi && <span className="text-gray-500"> · Lv.{fi.level} {fi.race} {fi.profession}</span>}
                                             </p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <div className="w-24 sm:w-32">
+                                            <div className="flex items-center gap-2 mt-0.5 sm:justify-end">
+                                                <div className="w-24 sm:w-32 sm:order-2">
                                                     <ProgressBar current={furthestIncomplete.progress} total={furthestIncomplete.total}
                                                         colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} />
                                                 </div>
-                                                <span className="text-xs text-gray-500">
+                                                <span className="text-xs text-gray-500 sm:order-1">
                                                     {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
                                                 </span>
                                             </div>
-                                        </>);
-                                    })() : (
-                                        <p className="text-xs text-gray-500 italic mt-0.5">Not started</p>
-                                    )}
-                                </div>
-                            </div>
-                            {isOwned ? (
-                                <div className="p-1 hover:bg-stone-700 rounded transition-colors shrink-0 ml-2">
-                                    {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                </div>
-                            ) : MANUAL_OWNERSHIP_STORIES.includes(season.name) ? (
-                                <div className="relative shrink-0 ml-2" ref={ownershipInfoRef}>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setShowOwnershipInfo(p => !p); }}
-                                        className="p-1 rounded transition-colors text-gray-500 hover:text-gw2-gold-light"
-                                        title="Why is this locked?"
-                                    >
-                                        <Info size={18} />
-                                    </button>
-                                    {showOwnershipInfo && (
-                                        <div className="absolute right-0 top-full mt-2 z-30 w-72 border border-stone-700 rounded-lg shadow-xl p-3" style={{ backgroundColor: '#1e1b17', opacity: 1 }}>
-                                            <p className="text-xs text-gray-400">
-                                                The GW2 API does not report ownership of Living World Seasons, The Icebrood Saga, or Visions of Eternity. Use the <Settings size={10} className="inline align-text-bottom text-gw2-gold" /> gear icon in the <span className="text-gw2-gold-light font-medium">Story Completion Overview</span> to mark which of these you own.
-                                            </p>
                                         </div>
-                                    )}
-                                </div>
-                            ) : null}
+                                    );
+                                })()}
+                            </div>
                         </div>
                     </div>
 
