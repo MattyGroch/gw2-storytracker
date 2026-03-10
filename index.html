@@ -603,11 +603,11 @@
                                 </span>
                             </div>
                         </div>
-                        <div className="w-16 sm:w-24 ml-2 sm:ml-4">
+                        <div className="w-16 sm:w-24 ml-2 sm:ml-4 flex flex-col items-end">
                             <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-500"} pips={showPips ? pips : []} />
+                            {timeLabel && <span className="text-xs text-gw2-gold-light mt-0.5 whitespace-nowrap">~{timeLabel}</span>}
                         </div>
                     </div>
-                    {timeLabel && <p className="text-xs text-gw2-gold-light mt-1 ml-8 sm:ml-11">~{timeLabel} remaining</p>}
                 </div>
             );
         };
