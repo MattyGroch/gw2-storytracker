@@ -249,6 +249,18 @@
         const MY_STORY_QUESTS_PER_PATH = 49;
         const CACHE_KEY = 'gw2_data_cache';
         const STALE_THRESHOLD_MS = 60 * 60 * 1000;
+        const STORY_TIMES_API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3456/v1'
+            : 'https://api.gw2storytimes.com/v1';
+
+        function formatPlaytime(mins) {
+            if (mins == null || mins <= 0) return null;
+            const h = Math.floor(mins / 60);
+            const m = Math.round(mins % 60);
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h ${m}m`;
+        }
 
         const EXPANSION_MAP = {
             'Heart of Thorns': 'HeartOfThorns',
@@ -561,12 +573,13 @@
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, unit = "Chapters", charInfo, onNavigate, pips, groupBoundaries, showPips = true }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Chapters", charInfo, onNavigate, pips, groupBoundaries, showPips = true, remainingFullMins }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
             const hasProgress = progress > 0;
             const info = charInfo?.[charName];
             const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total);
+            const timeLabel = !isComplete && remainingFullMins > 0 ? formatPlaytime(remainingFullMins) : null;
 
             return (
                 <div className="flex items-center justify-between p-2 rounded hover:bg-white/5">
@@ -586,6 +599,7 @@
                             <span className="text-xs text-gray-500">
                                 {progress} / {total} {unit} ({percentage}%)
                                 {groupLabel && <span className="text-gray-600"> · {groupLabel}</span>}
+                                {timeLabel && <span className="text-gw2-gold-light"> · ~{timeLabel} left</span>}
                             </span>
                         </div>
                     </div>
@@ -708,6 +722,7 @@
                                 <div className="min-w-0">
                                     <p className="text-xs text-gray-400">
                                         {groupSummary && <>{groupSummary.count} {groupSummary.type} · </>}{season.totalStories} {season.unit || 'Chapters'}
+                                        {(() => { const ft = Object.values(season.charData || {})[0]?.seasonFullMins; return ft > 0 ? <span className="text-gray-500"> · ~{formatPlaytime(ft)}</span> : null; })()}
                                     </p>
                                     {!isOwned ? (
                                         <p className="text-xs text-gray-500 italic mt-0.5">
@@ -742,6 +757,7 @@
                                                 </div>
                                                 <span className="text-xs text-gray-500 sm:order-1">
                                                     {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
+                                                    {furthestIncomplete.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(furthestIncomplete.remainingFullMins)} left</span>}
                                                 </span>
                                             </div>
                                         </div>
@@ -767,6 +783,7 @@
                                             pips={season.pips}
                                             groupBoundaries={season.groupBoundaries}
                                             showPips={showPips}
+                                            remainingFullMins={char.remainingFullMins}
                                         />
                                     ))}
                                 </div>
@@ -922,7 +939,7 @@
                             const pct = d.progress / d.total;
                             if (pct > topPct || (pct === topPct && d.progress > (top?.progress || 0))) {
                                 topPct = pct;
-                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries };
+                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins };
                             }
                         }
                     });
@@ -937,7 +954,7 @@
                         Object.entries(season.charData).forEach(([name, d]) => {
                             if (d.total > 0) {
                                 const pct = d.progress / d.total;
-                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries }; }
+                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins }; }
                             }
                         });
                         if (bestChar) { nextStory = bestChar; break; }
@@ -972,6 +989,9 @@
                                 {groupLabel && <span className="text-gray-600"> · {groupLabel}</span>}
                             </span>
                         </div>
+                        {rec.remainingFullMins > 0 && (
+                            <p className="text-xs text-gw2-gold-light mt-1 ml-0.5">~{formatPlaytime(rec.remainingFullMins)} remaining</p>
+                        )}
                     </div>
                 );
             };
@@ -1035,7 +1055,8 @@
                             total: cd?.total || 0,
                             unit: season.unit || 'Chapters',
                             pips: season.pips,
-                            groupBoundaries: season.groupBoundaries
+                            groupBoundaries: season.groupBoundaries,
+                            remainingFullMins: cd?.remainingFullMins || 0,
                         };
                     })
                     .filter(s => s.total > 0);
@@ -1045,6 +1066,7 @@
             const totalSeasons = seasonProgress.length;
             const totalQuestsCompleted = seasonProgress.reduce((s, sp) => s + sp.progress, 0);
             const totalQuestsTotal = seasonProgress.reduce((s, sp) => s + sp.total, 0);
+            const totalRemainingMins = seasonProgress.reduce((s, sp) => s + (sp.remainingFullMins || 0), 0);
 
             return (
                 <div ref={cardRef} className={`card-bg rounded-lg border overflow-hidden mb-4 shadow-lg transition-all duration-700 scroll-mt-20 ${highlight ? 'border-gw2-gold ring-2 ring-gw2-gold/50' : 'border-stone-800'} ${isHidden ? 'opacity-50' : ''}`}>
@@ -1072,6 +1094,7 @@
                                     </div>
                                     <span className="text-xs text-gray-500">
                                         {totalQuestsCompleted} / {totalQuestsTotal} Quests ({Math.round((totalQuestsCompleted / totalQuestsTotal) * 100 || 0)}%)
+                                        {totalRemainingMins > 0 && totalQuestsCompleted < totalQuestsTotal && <span className="text-gw2-gold-light"> · ~{formatPlaytime(totalRemainingMins)} left</span>}
                                     </span>
                                 </div>
                                 </>)}
@@ -1119,6 +1142,7 @@
                                                 <span className="text-xs text-gray-500">
                                                     {sp.progress} / {sp.total} {sp.unit} ({pct}%)
                                                     {spGroupLabel && <span className="text-gray-600"> · {spGroupLabel}</span>}
+                                                    {!isComplete && sp.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(sp.remainingFullMins)} left</span>}
                                                 </span>
                                             </div>
                                         </div>
@@ -1336,11 +1360,22 @@
                 try {
                     setLoadProgress({ current: 0, total: 1 });
                     setStatus('Loading game data and quest database...');
-                    const [seasonsData, storiesData, questToStoryMap] = await Promise.all([
+                    const [seasonsData, storiesData, questToStoryMap, storyTimesData] = await Promise.all([
                         fetch(`${API_BASE}/stories/seasons?ids=all`).then(r => r.json()),
                         fetch(`${API_BASE}/stories?ids=all`).then(r => r.json()),
-                        fetch('quest-data.json').then(r => r.json())
+                        fetch('quest-data.json').then(r => r.json()),
+                        fetch(`${STORY_TIMES_API}/missions`).then(r => r.json()).catch(() => null)
                     ]);
+
+                    const questTimeMap = {};
+                    if (storyTimesData) {
+                        for (const m of storyTimesData) {
+                            questTimeMap[m.id] = {
+                                fullMins: m.times?.full?.avg_mins || 0,
+                                speedMins: m.times?.speed?.avg_mins || 0,
+                            };
+                        }
+                    }
 
                     const seasonMap = {};
                     seasonsData.sort((a, b) => a.order - b.order).forEach(s => {
@@ -1436,6 +1471,23 @@
                             });
 
 
+                            let remainingFullMins = 0;
+                            let seasonFullMins = 0;
+                            if (Object.keys(questTimeMap).length > 0) {
+                                const completedSet = new Set(completedQuests.map(Number));
+                                Object.entries(questToStoryMap).forEach(([qId, sId]) => {
+                                    if (applicableStoryIds.has(sId)) {
+                                        const t = questTimeMap[Number(qId)];
+                                        if (t) {
+                                            seasonFullMins += t.fullMins;
+                                            if (!completedSet.has(Number(qId))) {
+                                                remainingFullMins += t.fullMins;
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+
                             if (useQuestLevel) {
                                 const totalQuests = myStory
                                     ? MY_STORY_QUESTS_PER_PATH
@@ -1443,13 +1495,17 @@
                                 charProgressMap[charName] = {
                                     progress: completedQuestCount,
                                     total: totalQuests,
-                                    completedIds: completedStoryIdsInSeason
+                                    completedIds: completedStoryIdsInSeason,
+                                    remainingFullMins,
+                                    seasonFullMins,
                                 };
                             } else {
                                 charProgressMap[charName] = {
                                     progress: completedStoryIdsInSeason.size,
                                     total: applicableStories.length,
-                                    completedIds: completedStoryIdsInSeason
+                                    completedIds: completedStoryIdsInSeason,
+                                    remainingFullMins,
+                                    seasonFullMins,
                                 };
                             }
                         });
@@ -1500,7 +1556,7 @@
                         ...s,
                         stories: undefined,
                         charData: Object.fromEntries(
-                            Object.entries(s.charData).map(([n, d]) => [n, { progress: d.progress, total: d.total }])
+                            Object.entries(s.charData).map(([n, d]) => [n, { progress: d.progress, total: d.total, remainingFullMins: d.remainingFullMins, seasonFullMins: d.seasonFullMins }])
                         )
                     }));
 
