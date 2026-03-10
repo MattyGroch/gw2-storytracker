@@ -610,7 +610,7 @@
             );
         };
 
-        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true, expandAllSignal }) => {
+        const SeasonCard = ({ season, characters, recommendedChar, charInfo, onNavigate, focusId, onNavigated, showPips = true, expandAllSignal, showTimeEstimates = true }) => {
             const [expanded, setExpanded] = useState(false);
             const [highlight, setHighlight] = useState(false);
             const [showOwnershipInfo, setShowOwnershipInfo] = useState(false);
@@ -722,7 +722,7 @@
                                 <div className="min-w-0">
                                     <p className="text-xs text-gray-400">
                                         {groupSummary && <>{groupSummary.count} {groupSummary.type} · </>}{season.totalStories} {season.unit || 'Chapters'}
-                                        {(() => { const ft = Object.values(season.charData || {})[0]?.seasonFullMins; return ft > 0 ? <span className="text-gray-500"> · ~{formatPlaytime(ft)}</span> : null; })()}
+                                        {showTimeEstimates && (() => { const ft = Object.values(season.charData || {})[0]?.seasonFullMins; return ft > 0 ? <span className="text-gray-500"> · ~{formatPlaytime(ft)}</span> : null; })()}
                                     </p>
                                     {!isOwned ? (
                                         <p className="text-xs text-gray-500 italic mt-0.5">
@@ -757,7 +757,7 @@
                                                 </div>
                                                 <span className="text-xs text-gray-500 sm:order-1">
                                                     {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
-                                                    {furthestIncomplete.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(furthestIncomplete.remainingFullMins)} left</span>}
+                                                    {showTimeEstimates && furthestIncomplete.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(furthestIncomplete.remainingFullMins)} left</span>}
                                                 </span>
                                             </div>
                                         </div>
@@ -783,7 +783,7 @@
                                             pips={season.pips}
                                             groupBoundaries={season.groupBoundaries}
                                             showPips={showPips}
-                                            remainingFullMins={char.remainingFullMins}
+                                            remainingFullMins={showTimeEstimates ? char.remainingFullMins : 0}
                                         />
                                     ))}
                                 </div>
@@ -918,7 +918,7 @@
             );
         };
 
-        const HeroRecommendation = ({ data, charInfo, showPips = true }) => {
+        const HeroRecommendation = ({ data, charInfo, showPips = true, showTimeEstimates = true }) => {
             const [collapsed, setCollapsed] = useState(() => {
                 const stored = localStorage.getItem('gw2_hero_collapsed');
                 return stored !== null ? stored === 'true' : false;
@@ -989,7 +989,7 @@
                                 {groupLabel && <span className="text-gray-600"> · {groupLabel}</span>}
                             </span>
                         </div>
-                        {rec.remainingFullMins > 0 && (
+                        {showTimeEstimates && rec.remainingFullMins > 0 && (
                             <p className="text-xs text-gw2-gold-light mt-1 ml-0.5">~{formatPlaytime(rec.remainingFullMins)} remaining</p>
                         )}
                     </div>
@@ -1017,7 +1017,7 @@
             );
         };
 
-        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded, showPips = true, expandAllSignal }) => {
+        const CharacterCard = ({ charName, charInfo, seasons, isHidden, onToggleVisibility, onNavigate, focusId, onNavigated, defaultExpanded, showPips = true, expandAllSignal, showTimeEstimates = true }) => {
             const [expanded, setExpanded] = useState(defaultExpanded || false);
             const [highlight, setHighlight] = useState(false);
             const cardRef = useRef(null);
@@ -1094,7 +1094,7 @@
                                     </div>
                                     <span className="text-xs text-gray-500">
                                         {totalQuestsCompleted} / {totalQuestsTotal} Quests ({Math.round((totalQuestsCompleted / totalQuestsTotal) * 100 || 0)}%)
-                                        {totalRemainingMins > 0 && totalQuestsCompleted < totalQuestsTotal && <span className="text-gw2-gold-light"> · ~{formatPlaytime(totalRemainingMins)} left</span>}
+                                        {showTimeEstimates && totalRemainingMins > 0 && totalQuestsCompleted < totalQuestsTotal && <span className="text-gw2-gold-light"> · ~{formatPlaytime(totalRemainingMins)} left</span>}
                                     </span>
                                 </div>
                                 </>)}
@@ -1142,7 +1142,7 @@
                                                 <span className="text-xs text-gray-500">
                                                     {sp.progress} / {sp.total} {sp.unit} ({pct}%)
                                                     {spGroupLabel && <span className="text-gray-600"> · {spGroupLabel}</span>}
-                                                    {!isComplete && sp.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(sp.remainingFullMins)} left</span>}
+                                                    {showTimeEstimates && !isComplete && sp.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(sp.remainingFullMins)} left</span>}
                                                 </span>
                                             </div>
                                         </div>
@@ -1251,6 +1251,10 @@
                         <a href="tos.html" className="hover:text-gray-400 transition-colors">Terms of Service</a>
                         <span className="mx-1.5">·</span>
                         <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://gw2storytimes.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Story Times</a>
                     </footer>
                 </div>
             );
@@ -1318,6 +1322,16 @@
             const toggleHideUnowned = useCallback(() => {
                 setHideUnowned(prev => {
                     localStorage.setItem('gw2_hide_unowned', String(!prev));
+                    return !prev;
+                });
+            }, []);
+            const [showTimeEstimates, setShowTimeEstimates] = useState(() => {
+                const stored = localStorage.getItem('gw2_show_time_estimates');
+                return stored !== null ? stored === 'true' : true;
+            });
+            const toggleShowTimeEstimates = useCallback(() => {
+                setShowTimeEstimates(prev => {
+                    localStorage.setItem('gw2_show_time_estimates', String(!prev));
                     return !prev;
                 });
             }, []);
@@ -2008,6 +2022,8 @@
                             <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
                             <span className="mx-1.5">·</span>
                             <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
+                            <span className="mx-1.5">·</span>
+                            <a href="https://gw2storytimes.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Story Times</a>
                         </footer>
                     </div>
                 );
@@ -2074,6 +2090,17 @@
                                                     aria-checked={hideUnowned}
                                                 >
                                                     <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${hideUnowned ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-3 mt-2">
+                                                <span className="text-sm text-gray-300">Show time estimates</span>
+                                                <button
+                                                    onClick={toggleShowTimeEstimates}
+                                                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 cursor-pointer ${showTimeEstimates ? 'bg-gw2-gold-dark' : 'bg-stone-700'}`}
+                                                    role="switch"
+                                                    aria-checked={showTimeEstimates}
+                                                >
+                                                    <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${showTimeEstimates ? 'translate-x-4' : 'translate-x-0'}`} />
                                                 </button>
                                             </div>
                                         </div>
@@ -2170,8 +2197,11 @@
                                 <p className="text-sm text-gray-300 mb-3">
                                     The GW2 API does not currently report ownership of <span className="text-gray-100 font-medium">Living World Seasons</span>, <span className="text-gray-100 font-medium">The Icebrood Saga</span>, or <span className="text-gray-100 font-medium">Visions of Eternity</span>. Use the <Settings size={12} className="inline text-gw2-gold" /> gear icon in the Story Completion Overview to indicate which of these you own.
                                 </p>
-                                <p className="text-sm text-gray-300 mb-4">
+                                <p className="text-sm text-gray-300 mb-3">
                                     Quest progress reflects all quests the API has ever recorded as completed, including from restarted stories or quests completed in another player's story instance. Progress may not always match your in-game journal and will correct itself as you replay through those quests.
+                                </p>
+                                <p className="text-sm text-gray-300 mb-4">
+                                    Time estimates are sourced from <a href="https://gw2storytimes.com" target="_blank" rel="noopener noreferrer" className="text-gw2-gold-light hover:text-gw2-gold transition-colors underline">gw2storytimes.com</a>, a community-driven site. Estimates reflect average completion times and may vary based on playstyle.
                                 </p>
                                 <button onClick={() => setShowAccessInfo(false)}
                                     className="w-full px-4 py-2 rounded-lg border border-stone-700 text-gray-400 text-sm hover:text-white hover:border-stone-600 transition-colors">
@@ -2265,7 +2295,7 @@
                                 </div>
 
                                 <AccountSummary data={visibleData} onNavigate={navigateTo} ownedStories={ownedStories} onToggleOwnership={toggleStoryOwnership} />
-                                <HeroRecommendation data={visibleData} charInfo={charInfo} showPips={showPips} />
+                                <HeroRecommendation data={visibleData} charInfo={charInfo} showPips={showPips} showTimeEstimates={showTimeEstimates} />
                                 <div className="border-t border-stone-800 my-6"></div>
 
                                 {!isSingleChar && (
@@ -2294,6 +2324,7 @@
                                         onNavigate={navigateTo}
                                         defaultExpanded={true}
                                         showPips={showPips}
+                                        showTimeEstimates={showTimeEstimates}
                                     />
                                 ) : (<>
                                 {viewMode === 'season' && hiddenChars.size > 0 && (
@@ -2323,6 +2354,7 @@
                                             onNavigated={() => setNavigateTarget(null)}
                                             showPips={showPips}
                                             expandAllSignal={expandAllSignal}
+                                            showTimeEstimates={showTimeEstimates}
                                         />
                                     ))
                                 ) : (
@@ -2347,6 +2379,7 @@
                                                 onNavigated={() => setNavigateTarget(null)}
                                                 showPips={showPips}
                                                 expandAllSignal={expandAllSignal}
+                                                showTimeEstimates={showTimeEstimates}
                                             />
                                         ))
                                 )}
@@ -2362,6 +2395,8 @@
                         <a href="https://github.com/MattyGroch/gw2-storytracker" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GitHub</a>
                         <span className="mx-1.5">·</span>
                         <a href="https://gw2pathfinder.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Pathfinder</a>
+                        <span className="mx-1.5">·</span>
+                        <a href="https://gw2storytimes.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors">GW2 Story Times</a>
                     </footer>
                 </div>
             );

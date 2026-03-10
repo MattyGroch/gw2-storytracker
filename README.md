@@ -10,6 +10,7 @@ A single-page web app that tracks your story journal progress across all charact
 - **"Continue Your Journey" recommendations** — dual cards showing the character/story closest to completion and the next story in chronological order
 - **Story Completion Overview** — color-coded pills for every season with completion status; click any pill to jump to that season
 - **By Story / By Character views** with cross-view navigation — click a character name or story to jump between views with smooth scrolling and highlight animation
+- **Time estimates** powered by [GW2 Story Times](https://gw2storytimes.com) — see estimated remaining playtime per season and per character, with a toggle to show/hide in settings
 - **At-a-glance story cards** — collapsed cards show completion status, character count, and the furthest-along character with a progress bar; responsive two-column layout on desktop
 - **Act / Chapter / Episode structure** — cards display internal structure (e.g., "4 Acts · 16 Quests") with optional progress bar dividers showing act/chapter boundaries
 - **Character management** — sort by progress, name, level, or profession; hide characters to focus on the ones that matter
@@ -45,6 +46,8 @@ The app fetches data from the [Guild Wars 2 API](https://wiki.guildwars2.com/wik
 - `/v2/account` for expansion ownership and account display name
 
 Quest-to-story mappings come from a pre-built `quest-data.json` file (sourced from `/v2/quests`) so the app doesn't need to make hundreds of API calls at runtime. Characters are processed in batches of 5 to stay within API rate limits.
+
+Time estimates are fetched from the [GW2 Story Times](https://gw2storytimes.com) API, a community-driven source of average mission completion times.
 
 When using gw2.me, the app obtains short-lived API subtokens (~10 minutes) via OAuth2 with PKCE. These subtokens are used identically to API keys for GW2 API calls.
 
