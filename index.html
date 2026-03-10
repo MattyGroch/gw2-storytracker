@@ -255,6 +255,7 @@
         const API_BASE = 'https://api.guildwars2.com/v2';
         const MY_STORY_SEASON_ID = '215AAA0F-CDAC-4F93-86DA-C155A99B5784';
         const MY_STORY_QUESTS_PER_PATH = 49;
+        const PROLOGUE_DEDUP_STORY_IDS = new Set([130, 151]);
         const CACHE_KEY = 'gw2_data_cache';
         const STALE_THRESHOLD_MS = 60 * 60 * 1000;
         const STORY_TIMES_API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -1486,6 +1487,21 @@
                         storyQuestCounts[storyId] = (storyQuestCounts[storyId] || 0) + 1;
                     });
 
+                    const prologueDedupMap = new Map();
+                    const prologueSkipQids = new Set();
+                    Object.entries(questToStoryMap).forEach(([qId, sId]) => {
+                        if (!PROLOGUE_DEDUP_STORY_IDS.has(sId)) return;
+                        if (!prologueDedupMap.has(sId)) {
+                            prologueDedupMap.set(sId, { canonical: Number(qId), allQids: new Set() });
+                        } else {
+                            prologueSkipQids.add(Number(qId));
+                        }
+                        prologueDedupMap.get(sId).allQids.add(Number(qId));
+                    });
+                    PROLOGUE_DEDUP_STORY_IDS.forEach(id => {
+                        if (storyQuestCounts[id]) storyQuestCounts[id] = 1;
+                    });
+
                     const processedSeasons = Object.values(seasonMap).map(season => {
                         const charProgressMap = {};
                         const myStory = season.id === MY_STORY_SEASON_ID;
@@ -1520,14 +1536,19 @@
                                 let rawSeasonMins = 0;
                                 let rawQuestCount = 0;
                                 Object.entries(questToStoryMap).forEach(([qId, sId]) => {
-                                    if (applicableStoryIds.has(sId)) {
-                                        const t = questTimeMap[Number(qId)];
-                                        if (t) {
-                                            rawSeasonMins += t.fullMins;
-                                            rawQuestCount++;
-                                            if (!completedSet.has(Number(qId))) {
-                                                remainingFullMins += t.fullMins;
-                                            }
+                                    if (!applicableStoryIds.has(sId)) return;
+                                    const nQId = Number(qId);
+                                    if (prologueSkipQids.has(nQId)) return;
+                                    const t = questTimeMap[nQId];
+                                    if (t) {
+                                        rawSeasonMins += t.fullMins;
+                                        rawQuestCount++;
+                                        const dedup = prologueDedupMap.get(sId);
+                                        const isCompleted = dedup
+                                            ? [...dedup.allQids].some(q => completedSet.has(q))
+                                            : completedSet.has(nQId);
+                                        if (!isCompleted) {
+                                            remainingFullMins += t.fullMins;
                                         }
                                     }
                                 });
