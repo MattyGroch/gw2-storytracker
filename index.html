@@ -759,9 +759,11 @@
                                                 </div>
                                                 <span className="text-xs text-gray-500 sm:order-1">
                                                     {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
-                                                    {showTimeEstimates && furthestIncomplete.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(furthestIncomplete.remainingFullMins)} left</span>}
                                                 </span>
                                             </div>
+                                            {showTimeEstimates && furthestIncomplete.remainingFullMins > 0 && (
+                                                <p className="text-xs text-gw2-gold-light mt-0.5 sm:text-right">~{formatPlaytime(furthestIncomplete.remainingFullMins)} remaining</p>
+                                            )}
                                         </div>
                                     );
                                 })()}
@@ -1096,9 +1098,11 @@
                                     </div>
                                     <span className="text-xs text-gray-500">
                                         {totalQuestsCompleted} / {totalQuestsTotal} Quests ({Math.round((totalQuestsCompleted / totalQuestsTotal) * 100 || 0)}%)
-                                        {showTimeEstimates && totalRemainingMins > 0 && totalQuestsCompleted < totalQuestsTotal && <span className="text-gw2-gold-light"> · ~{formatPlaytime(totalRemainingMins)} left</span>}
                                     </span>
                                 </div>
+                                {showTimeEstimates && totalRemainingMins > 0 && totalQuestsCompleted < totalQuestsTotal && (
+                                    <p className="text-xs text-gw2-gold-light mt-0.5">~{formatPlaytime(totalRemainingMins)} remaining</p>
+                                )}
                                 </>)}
                             </div>
                         </div>
@@ -1130,27 +1134,31 @@
                                 return (
                                     <div
                                         key={sp.id}
-                                        className="flex items-center justify-between p-2 rounded hover:bg-white/5"
+                                        className="p-2 rounded hover:bg-white/5"
                                         style={STORY_COLORS[sp.name] ? { borderLeft: `3px solid ${STORY_COLORS[sp.name]}` } : undefined}
                                     >
-                                        <div className="flex items-center gap-3 flex-1">
-                                            <BookOpen size={16} className={isComplete ? "text-green-500" : hasProgress ? "text-gw2-gold-light" : "text-gray-600"} />
-                                            <div className="flex flex-col">
-                                                {onNavigate ? (
-                                    <button onClick={() => onNavigate('season', sp.id)} className={`text-sm font-medium text-left hover:underline hover:text-gw2-gold-light transition-colors ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</button>
-                                ) : (
-                                    <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
-                                )}
-                                                <span className="text-xs text-gray-500">
-                                                    {sp.progress} / {sp.total} {sp.unit} ({pct}%)
-                                                    {spGroupLabel && <span className="text-gray-600"> · {spGroupLabel}</span>}
-                                                    {showTimeEstimates && !isComplete && sp.remainingFullMins > 0 && <span className="text-gw2-gold-light"> · ~{formatPlaytime(sp.remainingFullMins)} left</span>}
-                                                </span>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 flex-1">
+                                                <BookOpen size={16} className={isComplete ? "text-green-500" : hasProgress ? "text-gw2-gold-light" : "text-gray-600"} />
+                                                <div className="flex flex-col">
+                                                    {onNavigate ? (
+                                        <button onClick={() => onNavigate('season', sp.id)} className={`text-sm font-medium text-left hover:underline hover:text-gw2-gold-light transition-colors ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</button>
+                                    ) : (
+                                        <span className={`text-sm font-medium ${isComplete ? 'text-green-400' : 'text-gray-300'}`}>{sp.name}</span>
+                                    )}
+                                                    <span className="text-xs text-gray-500">
+                                                        {sp.progress} / {sp.total} {sp.unit} ({pct}%)
+                                                        {spGroupLabel && <span className="text-gray-600"> · {spGroupLabel}</span>}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="w-16 sm:w-24 ml-2 sm:ml-4">
+                                                <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} pips={showPips ? sp.pips : []} />
                                             </div>
                                         </div>
-                                        <div className="w-16 sm:w-24 ml-2 sm:ml-4">
-                                            <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} pips={showPips ? sp.pips : []} />
-                                        </div>
+                                        {showTimeEstimates && !isComplete && sp.remainingFullMins > 0 && (
+                                            <p className="text-xs text-gw2-gold-light mt-1 ml-7">~{formatPlaytime(sp.remainingFullMins)} remaining</p>
+                                        )}
                                     </div>
                                 );
                             })}
