@@ -1475,17 +1475,29 @@
                             let seasonFullMins = 0;
                             if (Object.keys(questTimeMap).length > 0) {
                                 const completedSet = new Set(completedQuests.map(Number));
+                                let rawSeasonMins = 0;
+                                let rawQuestCount = 0;
                                 Object.entries(questToStoryMap).forEach(([qId, sId]) => {
                                     if (applicableStoryIds.has(sId)) {
                                         const t = questTimeMap[Number(qId)];
                                         if (t) {
-                                            seasonFullMins += t.fullMins;
+                                            rawSeasonMins += t.fullMins;
+                                            rawQuestCount++;
                                             if (!completedSet.has(Number(qId))) {
                                                 remainingFullMins += t.fullMins;
                                             }
                                         }
                                     }
                                 });
+
+                                if (myStory && rawQuestCount > 0) {
+                                    const avgPerQuest = rawSeasonMins / rawQuestCount;
+                                    seasonFullMins = avgPerQuest * MY_STORY_QUESTS_PER_PATH;
+                                    const remainingCount = MY_STORY_QUESTS_PER_PATH - completedQuestCount;
+                                    remainingFullMins = remainingCount > 0 ? avgPerQuest * remainingCount : 0;
+                                } else {
+                                    seasonFullMins = rawSeasonMins;
+                                }
                             }
 
                             if (useQuestLevel) {
