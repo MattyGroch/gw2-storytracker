@@ -1608,7 +1608,9 @@
                             : uniqueOrders.size;
 
                         const requiredAccess = EXPANSION_MAP[season.name];
-                        const owned = !requiredAccess || accountAccess.includes(requiredAccess);
+                        const owned = !requiredAccess
+                            || accountAccess.includes(requiredAccess)
+                            || (requiredAccess === 'HeartOfThorns' && accountAccess.includes('PathOfFire'));
                         const pips = computeSeasonPips(season.id, season.stories, storyQuestCounts, useQuestLevel);
                         const groupBoundaries = computeGroupBoundaries(season.id, season.stories, storyQuestCounts, useQuestLevel);
 
