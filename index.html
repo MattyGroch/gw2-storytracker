@@ -506,8 +506,21 @@
             return boundaries;
         }
 
-        function getCurrentGroupLabel(boundaries, progress, total) {
-            if (!boundaries || boundaries.length === 0 || progress <= 0 || progress >= total) return null;
+        function getCurrentGroupLabel(boundaries, progress, total, mask = null) {
+            if (!boundaries || boundaries.length === 0) return null;
+            // With a mask, label the furthest group actually reached rather than the
+            // group a left-to-right count would land in — completion can be non-contiguous
+            // (e.g. a character that finished the later episodes but skipped earlier ones).
+            if (mask && mask.length) {
+                if (!mask.includes('0')) return null; // fully complete
+                const lastIdx = mask.lastIndexOf('1');
+                if (lastIdx < 0) return null;          // nothing completed
+                for (const b of boundaries) {
+                    if (lastIdx < b.cumulative) return b.label;
+                }
+                return null;
+            }
+            if (progress <= 0 || progress >= total) return null;
             for (const b of boundaries) {
                 if (progress < b.cumulative) return b.label;
             }
@@ -625,7 +638,7 @@
             const isComplete = progress >= total;
             const hasProgress = progress > 0;
             const info = charInfo?.[charName];
-            const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total);
+            const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total, mask);
             const timeLabel = !isComplete && remainingFullMins > 0 ? formatPlaytime(remainingFullMins) : null;
 
             return (
@@ -722,7 +735,7 @@
                 return best;
             }, [sortedChars, isOwned]);
             const furthestGroupLabel = furthestIncomplete
-                ? getCurrentGroupLabel(season.groupBoundaries, furthestIncomplete.progress, furthestIncomplete.total)
+                ? getCurrentGroupLabel(season.groupBoundaries, furthestIncomplete.progress, furthestIncomplete.total, furthestIncomplete.mask)
                 : null;
 
             const toggleExpanded = () => { if (isOwned) setExpanded(prev => !prev); };
@@ -1014,7 +1027,7 @@
                             const pct = d.progress / d.total;
                             if (pct > topPct || (pct === topPct && d.progress > (top?.progress || 0))) {
                                 topPct = pct;
-                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins };
+                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, mask: d.mask, remainingFullMins: d.remainingFullMins };
                             }
                         }
                     });
@@ -1029,7 +1042,7 @@
                         Object.entries(season.charData).forEach(([name, d]) => {
                             if (d.total > 0) {
                                 const pct = d.progress / d.total;
-                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins }; }
+                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, mask: d.mask, remainingFullMins: d.remainingFullMins }; }
                             }
                         });
                         if (bestChar) { nextStory = bestChar; break; }
@@ -1046,7 +1059,7 @@
             const RecommendationPane = ({ rec, label }) => {
                 if (!rec) return null;
                 const info = charInfo?.[rec.charName];
-                const groupLabel = getCurrentGroupLabel(rec.groupBoundaries, rec.progress, rec.total);
+                const groupLabel = getCurrentGroupLabel(rec.groupBoundaries, rec.progress, rec.total, rec.mask);
                 return (
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">{label}</p>
@@ -1057,7 +1070,7 @@
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">
                             <div className="w-20 sm:w-28">
-                                <ProgressBar current={rec.progress} total={rec.total} colorClass="bg-gw2-gold" pips={showPips ? rec.pips : []} />
+                                <ProgressBar current={rec.progress} total={rec.total} colorClass="bg-gw2-gold" pips={showPips ? rec.pips : []} mask={rec.mask} />
                             </div>
                             <span className="text-xs text-gray-500">
                                 {rec.progress} / {rec.total} {rec.unit} ({rec.pct}%)
@@ -1202,7 +1215,7 @@
                                 const pct = Math.round((sp.progress / sp.total) * 100);
                                 const isComplete = sp.progress >= sp.total;
                                 const hasProgress = sp.progress > 0;
-                                const spGroupLabel = getCurrentGroupLabel(sp.groupBoundaries, sp.progress, sp.total);
+                                const spGroupLabel = getCurrentGroupLabel(sp.groupBoundaries, sp.progress, sp.total, sp.mask);
                                 return (
                                     <div
                                         key={sp.id}
