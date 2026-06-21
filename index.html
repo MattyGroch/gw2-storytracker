@@ -128,6 +128,14 @@
                 <circle cx="12" cy="7" r="4" />
             </IconBase>
         );
+        const Users = (props) => (
+            <IconBase {...props}>
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </IconBase>
+        );
         const AlertCircle = (props) => (
             <IconBase {...props}>
                 <circle cx="12" cy="12" r="10" />
@@ -257,6 +265,9 @@
         const MY_STORY_QUESTS_PER_PATH = 49;
         const PROLOGUE_DEDUP_STORY_IDS = new Set([130, 151]);
         const CACHE_KEY = 'gw2_data_cache';
+        // Bump when the cached data shape changes so stale caches are rebuilt instead of
+        // silently dropping new fields (e.g. per-character completion masks).
+        const CACHE_VERSION = 2;
         const STALE_THRESHOLD_MS = 60 * 60 * 1000;
         const STORY_TIMES_API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:3456/v1'
@@ -495,8 +506,21 @@
             return boundaries;
         }
 
-        function getCurrentGroupLabel(boundaries, progress, total) {
-            if (!boundaries || boundaries.length === 0 || progress <= 0 || progress >= total) return null;
+        function getCurrentGroupLabel(boundaries, progress, total, mask = null) {
+            if (!boundaries || boundaries.length === 0) return null;
+            // With a mask, label the furthest group actually reached rather than the
+            // group a left-to-right count would land in — completion can be non-contiguous
+            // (e.g. a character that finished the later episodes but skipped earlier ones).
+            if (mask && mask.length) {
+                if (!mask.includes('0')) return null; // fully complete
+                const lastIdx = mask.lastIndexOf('1');
+                if (lastIdx < 0) return null;          // nothing completed
+                for (const b of boundaries) {
+                    if (lastIdx < b.cumulative) return b.label;
+                }
+                return null;
+            }
+            if (progress <= 0 || progress >= total) return null;
             for (const b of boundaries) {
                 if (progress < b.cumulative) return b.label;
             }
@@ -564,14 +588,41 @@
 
         // --- Components ---
 
-        const ProgressBar = ({ current, total, colorClass = "bg-gw2-gold", pips = [] }) => {
+        const ProgressBar = ({ current, total, colorClass = "bg-gw2-gold", pips = [], mask = null }) => {
+            // With a mask, fill each completed position in place so the bar reflects which
+            // chapters are done (e.g. a character that finished only the later episodes
+            // fills from the right), drawing contiguous completed runs as single segments.
+            const segments = [];
+            if (mask && mask.length) {
+                const len = mask.length;
+                let i = 0;
+                while (i < len) {
+                    if (mask[i] === '1') {
+                        let j = i;
+                        while (j < len && mask[j] === '1') j++;
+                        segments.push({ left: (i / len) * 100, width: ((j - i) / len) * 100 });
+                        i = j;
+                    } else {
+                        i++;
+                    }
+                }
+            }
             const percentage = Math.min(100, Math.max(0, (current / total) * 100));
             return (
                 <div className="w-full h-2 rounded-full progress-bar-bg overflow-hidden relative">
-                    <div 
-                        className={`h-full ${colorClass} transition-all duration-500`} 
-                        style={{ width: `${percentage}%` }}
-                    />
+                    {mask && mask.length ? (
+                        segments.map((seg, i) => (
+                            <div key={i}
+                                className={`absolute top-0 h-full ${colorClass} transition-all duration-500`}
+                                style={{ left: `${seg.left}%`, width: `${seg.width}%` }}
+                            />
+                        ))
+                    ) : (
+                        <div
+                            className={`h-full ${colorClass} transition-all duration-500`}
+                            style={{ width: `${percentage}%` }}
+                        />
+                    )}
                     {pips.map((pos, i) => (
                         <div key={i}
                             className="absolute top-0 h-full w-px bg-white/30"
@@ -582,12 +633,12 @@
             );
         };
 
-        const CharacterRow = ({ charName, progress, total, unit = "Chapters", charInfo, onNavigate, pips, groupBoundaries, showPips = true, remainingFullMins }) => {
+        const CharacterRow = ({ charName, progress, total, unit = "Chapters", charInfo, onNavigate, pips, groupBoundaries, showPips = true, remainingFullMins, mask = null }) => {
             const percentage = Math.round((progress / total) * 100);
             const isComplete = progress >= total;
             const hasProgress = progress > 0;
             const info = charInfo?.[charName];
-            const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total);
+            const groupLabel = getCurrentGroupLabel(groupBoundaries, progress, total, mask);
             const timeLabel = !isComplete && remainingFullMins > 0 ? formatPlaytime(remainingFullMins) : null;
 
             return (
@@ -613,7 +664,7 @@
                             </div>
                         </div>
                         <div className="w-16 sm:w-24 ml-2 sm:ml-4 flex flex-col items-end">
-                            <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-500"} pips={showPips ? pips : []} />
+                            <ProgressBar current={progress} total={total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-500"} pips={showPips ? pips : []} mask={mask} />
                             {timeLabel && <span className="text-xs text-gw2-gold-light mt-0.5 whitespace-nowrap">~{timeLabel}</span>}
                         </div>
                     </div>
@@ -670,6 +721,9 @@
 
             const completedCount = isOwned ? sortedChars.filter(c => c.progress >= c.total).length : 0;
             const totalCharCount = sortedChars.length;
+            // Every chapter is finished somewhere on the account, but no single character
+            // completed the whole story on their own.
+            const accountComplete = isOwned && !!season.accountComplete && completedCount === 0;
             const furthestIncomplete = useMemo(() => {
                 if (!isOwned) return null;
                 let best = null;
@@ -681,7 +735,7 @@
                 return best;
             }, [sortedChars, isOwned]);
             const furthestGroupLabel = furthestIncomplete
-                ? getCurrentGroupLabel(season.groupBoundaries, furthestIncomplete.progress, furthestIncomplete.total)
+                ? getCurrentGroupLabel(season.groupBoundaries, furthestIncomplete.progress, furthestIncomplete.total, furthestIncomplete.mask)
                 : null;
 
             const toggleExpanded = () => { if (isOwned) setExpanded(prev => !prev); };
@@ -703,7 +757,7 @@
                         <div>
                             <div className="flex items-center justify-between mb-0.5">
                                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                    <BookOpen className={`shrink-0 ${completedCount > 0 ? "text-green-500" : isOwned ? "text-gw2-gold" : "text-gray-600"}`} size={24} />
+                                    <BookOpen className={`shrink-0 ${completedCount > 0 || accountComplete ? "text-green-500" : isOwned ? "text-gw2-gold" : "text-gray-600"}`} size={24} />
                                     <h3 className="text-base sm:text-lg font-bold text-gray-100 font-display truncate">{season.name}</h3>
                                 </div>
                                 {isOwned ? (
@@ -743,6 +797,10 @@
                                         <p className="text-xs text-green-400 mt-0.5">
                                             <CheckCircle2 size={12} className="inline mr-1 align-text-bottom" />Complete · {totalCharCount}/{totalCharCount} Characters
                                         </p>
+                                    ) : accountComplete ? (
+                                        <p className="text-xs text-green-400 mt-0.5">
+                                            <CheckCircle2 size={12} className="inline mr-1 align-text-bottom" />Complete · across {season.contributingChars} characters
+                                        </p>
                                     ) : completedCount > 0 ? (
                                         <p className="text-xs text-green-500/80 mt-0.5">
                                             <span className="text-green-400">{completedCount}</span>/{totalCharCount} Characters Completed
@@ -751,7 +809,23 @@
                                         <p className="text-xs text-gray-500 italic mt-0.5">Not started</p>
                                     ) : null}
                                 </div>
-                                {isOwned && furthestIncomplete && (() => {
+                                {isOwned && accountComplete ? (
+                                    <div className="shrink-0 sm:text-right">
+                                        <p className="text-xs text-gray-400">
+                                            <Users size={12} className="inline mr-1 align-text-bottom text-green-500" />
+                                            <span className="text-green-400 font-medium">All {season.unit || 'Chapters'} complete</span>
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5 sm:justify-end">
+                                            <div className="w-24 sm:w-32 sm:order-2">
+                                                <ProgressBar current={1} total={1} colorClass="bg-green-500"
+                                                    pips={showPips ? season.pips : []} mask={season.unionMask} />
+                                            </div>
+                                            <span className="text-xs text-gray-500 sm:order-1">
+                                                {season.accountProgress} / {season.totalStories} {season.unit || 'Chapters'} (100%)
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : isOwned && furthestIncomplete && (() => {
                                     const fi = charInfo?.[furthestIncomplete.name];
                                     const pct = Math.round((furthestIncomplete.progress / furthestIncomplete.total) * 100);
                                     return (
@@ -764,7 +838,7 @@
                                             <div className="flex items-center gap-2 mt-0.5 sm:justify-end">
                                                 <div className="w-24 sm:w-32 sm:order-2">
                                                     <ProgressBar current={furthestIncomplete.progress} total={furthestIncomplete.total}
-                                                        colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} />
+                                                        colorClass="bg-gw2-gold" pips={showPips ? season.pips : []} mask={furthestIncomplete.mask} />
                                                 </div>
                                                 <span className="text-xs text-gray-500 sm:order-1">
                                                     {furthestIncomplete.progress} / {furthestIncomplete.total} {season.unit || 'Chapters'} ({pct}%)
@@ -797,6 +871,7 @@
                                             groupBoundaries={season.groupBoundaries}
                                             showPips={showPips}
                                             remainingFullMins={showTimeEstimates ? char.remainingFullMins : 0}
+                                            mask={char.mask}
                                         />
                                     ))}
                                 </div>
@@ -897,7 +972,7 @@
                             {data.map(season => {
                                 const isOwned = season.owned !== false;
                                 const chars = Object.values(season.charData);
-                                const completed = isOwned && chars.some(c => c.progress >= c.total);
+                                const completed = isOwned && (season.accountComplete || chars.some(c => c.progress >= c.total));
                                 const inProgress = isOwned && !completed && chars.some(c => c.progress > 0);
                                 const maxPct = inProgress ? Math.max(...chars.map(c => c.total > 0 ? c.progress / c.total : 0)) : 0;
                                 const color = STORY_COLORS[season.name];
@@ -946,13 +1021,13 @@
             const { closest, storyOrder } = useMemo(() => {
                 let top = null;
                 let topPct = -1;
-                data.filter(s => s.owned !== false).forEach(season => {
+                data.filter(s => s.owned !== false && !s.accountComplete).forEach(season => {
                     Object.entries(season.charData).forEach(([name, d]) => {
                         if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
                             const pct = d.progress / d.total;
                             if (pct > topPct || (pct === topPct && d.progress > (top?.progress || 0))) {
                                 topPct = pct;
-                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins };
+                                top = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, mask: d.mask, remainingFullMins: d.remainingFullMins };
                             }
                         }
                     });
@@ -961,13 +1036,13 @@
                 let nextStory = null;
                 for (const season of data.filter(s => s.owned !== false)) {
                     const chars = Object.values(season.charData);
-                    const anyCleared = chars.length > 0 && chars.some(d => d.progress >= d.total);
+                    const anyCleared = season.accountComplete || (chars.length > 0 && chars.some(d => d.progress >= d.total));
                     if (!anyCleared) {
                         let bestChar = null, bestPct = -1;
                         Object.entries(season.charData).forEach(([name, d]) => {
                             if (d.total > 0) {
                                 const pct = d.progress / d.total;
-                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, remainingFullMins: d.remainingFullMins }; }
+                                if (pct > bestPct) { bestPct = pct; bestChar = { charName: name, seasonName: season.name, seasonId: season.id, progress: d.progress, total: d.total, unit: season.unit, pct: Math.round(pct * 100), pips: season.pips, groupBoundaries: season.groupBoundaries, mask: d.mask, remainingFullMins: d.remainingFullMins }; }
                             }
                         });
                         if (bestChar) { nextStory = bestChar; break; }
@@ -984,7 +1059,7 @@
             const RecommendationPane = ({ rec, label }) => {
                 if (!rec) return null;
                 const info = charInfo?.[rec.charName];
-                const groupLabel = getCurrentGroupLabel(rec.groupBoundaries, rec.progress, rec.total);
+                const groupLabel = getCurrentGroupLabel(rec.groupBoundaries, rec.progress, rec.total, rec.mask);
                 return (
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">{label}</p>
@@ -995,7 +1070,7 @@
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">
                             <div className="w-20 sm:w-28">
-                                <ProgressBar current={rec.progress} total={rec.total} colorClass="bg-gw2-gold" pips={showPips ? rec.pips : []} />
+                                <ProgressBar current={rec.progress} total={rec.total} colorClass="bg-gw2-gold" pips={showPips ? rec.pips : []} mask={rec.mask} />
                             </div>
                             <span className="text-xs text-gray-500">
                                 {rec.progress} / {rec.total} {rec.unit} ({rec.pct}%)
@@ -1069,6 +1144,7 @@
                             unit: season.unit || 'Chapters',
                             pips: season.pips,
                             groupBoundaries: season.groupBoundaries,
+                            mask: cd?.mask || null,
                             remainingFullMins: cd?.remainingFullMins || 0,
                         };
                     })
@@ -1139,7 +1215,7 @@
                                 const pct = Math.round((sp.progress / sp.total) * 100);
                                 const isComplete = sp.progress >= sp.total;
                                 const hasProgress = sp.progress > 0;
-                                const spGroupLabel = getCurrentGroupLabel(sp.groupBoundaries, sp.progress, sp.total);
+                                const spGroupLabel = getCurrentGroupLabel(sp.groupBoundaries, sp.progress, sp.total, sp.mask);
                                 return (
                                     <div
                                         key={sp.id}
@@ -1162,7 +1238,7 @@
                                                 </div>
                                             </div>
                                             <div className="w-16 sm:w-24 ml-2 sm:ml-4">
-                                                <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} pips={showPips ? sp.pips : []} />
+                                                <ProgressBar current={sp.progress} total={sp.total} colorClass={isComplete ? "bg-green-500" : hasProgress ? "bg-gw2-gold" : "bg-gray-600"} pips={showPips ? sp.pips : []} mask={sp.mask} />
                                             </div>
                                         </div>
                                         {showTimeEstimates && !isComplete && sp.remainingFullMins > 0 && (
@@ -1509,6 +1585,30 @@
                             sum + (storyQuestCounts[s.id] || 0), 0);
                         const useQuestLevel = seasonTotalQuests > 0;
 
+                        // Build a canonical, ordered list of the season's items so each
+                        // character's completion can be rendered at its true position in the
+                        // story (not just as a left-aligned count). My Story is excluded
+                        // because its race-specific paths make a shared ordering ambiguous.
+                        const canonicalItems = [];
+                        if (!myStory) {
+                            const storyQuestIds = {};
+                            Object.entries(questToStoryMap).forEach(([qId, sId]) => {
+                                const n = Number(qId);
+                                if (prologueSkipQids.has(n)) return;
+                                (storyQuestIds[sId] = storyQuestIds[sId] || []).push(n);
+                            });
+                            Object.values(storyQuestIds).forEach(arr => arr.sort((a, b) => a - b));
+                            for (const s of season.stories) {
+                                if (useQuestLevel) {
+                                    for (const q of (storyQuestIds[s.id] || [])) {
+                                        canonicalItems.push({ questId: q, storyId: s.id });
+                                    }
+                                } else {
+                                    canonicalItems.push({ questId: null, storyId: s.id });
+                                }
+                            }
+                        }
+
                         chars.forEach(charName => {
                             const race = charInfoMap[charName]?.race;
                             const applicableStories = season.stories.filter(s =>
@@ -1527,6 +1627,21 @@
                                     completedQuestCount++;
                                 }
                             });
+
+                            // Per-position completion mask over the season's canonical items,
+                            // so the progress bar fills at the true story positions rather
+                            // than always from the left.
+                            const charCompletedSet = new Set(completedQuests.map(Number));
+                            const mask = canonicalItems.map(item => {
+                                if (item.questId === null) {
+                                    return completedStoryIdsInSeason.has(item.storyId) ? '1' : '0';
+                                }
+                                const dedup = prologueDedupMap.get(item.storyId);
+                                const done = dedup
+                                    ? [...dedup.allQids].some(q => charCompletedSet.has(q))
+                                    : charCompletedSet.has(item.questId);
+                                return done ? '1' : '0';
+                            }).join('');
 
 
                             let remainingFullMins = 0;
@@ -1571,6 +1686,7 @@
                                     progress: completedQuestCount,
                                     total: totalQuests,
                                     completedIds: completedStoryIdsInSeason,
+                                    mask: mask || null,
                                     remainingFullMins,
                                     seasonFullMins,
                                 };
@@ -1579,6 +1695,7 @@
                                     progress: completedStoryIdsInSeason.size,
                                     total: applicableStories.length,
                                     completedIds: completedStoryIdsInSeason,
+                                    mask: mask || null,
                                     remainingFullMins,
                                     seasonFullMins,
                                 };
@@ -1614,6 +1731,29 @@
                         const pips = computeSeasonPips(season.id, season.stories, storyQuestCounts, useQuestLevel);
                         const groupBoundaries = computeGroupBoundaries(season.id, season.stories, storyQuestCounts, useQuestLevel);
 
+                        // Combine every character's mask into an account-wide union so a
+                        // story counts as complete when its chapters were finished across
+                        // different characters, not only by a single one.
+                        let unionMask = null;
+                        let accountComplete = false;
+                        let accountProgress = 0;
+                        let contributingChars = 0;
+                        if (canonicalItems.length > 0) {
+                            const len = canonicalItems.length;
+                            const union = new Array(len).fill(false);
+                            Object.values(charProgressMap).forEach(d => {
+                                if (!d.mask) return;
+                                let contributed = false;
+                                for (let i = 0; i < len; i++) {
+                                    if (d.mask[i] === '1') { union[i] = true; contributed = true; }
+                                }
+                                if (contributed) contributingChars++;
+                            });
+                            unionMask = union.map(b => b ? '1' : '0').join('');
+                            accountProgress = union.filter(Boolean).length;
+                            accountComplete = accountProgress === len;
+                        }
+
                         return {
                             ...season,
                             totalStories: displayTotal,
@@ -1623,7 +1763,11 @@
                             owned,
                             requiredExpansion: requiredAccess && !owned ? season.name : null,
                             pips,
-                            groupBoundaries
+                            groupBoundaries,
+                            unionMask,
+                            accountComplete,
+                            accountProgress,
+                            contributingChars
                         };
                     });
 
@@ -1633,7 +1777,7 @@
                         ...s,
                         stories: undefined,
                         charData: Object.fromEntries(
-                            Object.entries(s.charData).map(([n, d]) => [n, { progress: d.progress, total: d.total, remainingFullMins: d.remainingFullMins, seasonFullMins: d.seasonFullMins }])
+                            Object.entries(s.charData).map(([n, d]) => [n, { progress: d.progress, total: d.total, mask: d.mask, remainingFullMins: d.remainingFullMins, seasonFullMins: d.seasonFullMins }])
                         )
                     }));
 
@@ -1646,6 +1790,7 @@
 
                     try {
                         localStorage.setItem(CACHE_KEY, JSON.stringify({
+                            version: CACHE_VERSION,
                             data: cacheableSeasons,
                             charInfo: charInfoMap,
                             accountName: displayName,
@@ -1750,6 +1895,10 @@
                     const raw = localStorage.getItem(CACHE_KEY);
                     if (raw) {
                         const cached = JSON.parse(raw);
+                        if (cached.version !== CACHE_VERSION) {
+                            localStorage.removeItem(CACHE_KEY);
+                            throw new Error('cache version mismatch');
+                        }
                         setData(cached.data);
                         setCharInfo(cached.charInfo);
                         setAccountName(cached.accountName || '');
@@ -1919,8 +2068,29 @@
                     Object.entries(season.charData).forEach(([name, d]) => {
                         if (!hiddenChars.has(name)) filteredCharData[name] = d;
                     });
+
+                    // Recompute the account-wide union over only the visible characters so
+                    // hiding a character that contributed chapters updates completion too.
+                    let unionMask = null, accountComplete = false, accountProgress = 0, contributingChars = 0;
+                    const maskLen = Object.values(filteredCharData).find(d => d.mask)?.mask.length || 0;
+                    if (maskLen > 0) {
+                        const union = new Array(maskLen).fill(false);
+                        Object.values(filteredCharData).forEach(d => {
+                            if (!d.mask) return;
+                            let contributed = false;
+                            for (let i = 0; i < maskLen; i++) {
+                                if (d.mask[i] === '1') { union[i] = true; contributed = true; }
+                            }
+                            if (contributed) contributingChars++;
+                        });
+                        unionMask = union.map(b => b ? '1' : '0').join('');
+                        accountProgress = union.filter(Boolean).length;
+                        accountComplete = accountProgress === maskLen;
+                    }
+
                     let recommendation = null;
-                    if (owned !== false) {
+                    const someCharComplete = Object.values(filteredCharData).some(d => d.total > 0 && d.progress >= d.total);
+                    if (owned !== false && !(accountComplete && !someCharComplete)) {
                         let topPct = -1;
                         Object.entries(filteredCharData).forEach(([name, d]) => {
                             if (d.progress > 0 && d.total > 0 && d.progress < d.total) {
@@ -1932,7 +2102,7 @@
                             }
                         });
                     }
-                    return { ...season, owned, charData: filteredCharData, recommendation, requiredExpansion: !owned ? season.name : null };
+                    return { ...season, owned, charData: filteredCharData, recommendation, unionMask, accountComplete, accountProgress, contributingChars, requiredExpansion: !owned ? season.name : null };
                 }).filter(s => !hideUnowned || s.owned !== false);
             }, [data, hiddenChars, ownedStories, hideUnowned]);
 
